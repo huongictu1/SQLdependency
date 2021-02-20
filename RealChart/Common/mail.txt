@@ -1,0 +1,50 @@
+ private bool Sendmail(string txtfrom, string txtto, string txtsub, string txtcontent)
+        {
+            Sendmail mail = new Sendmail(txtfrom, txtto, txtsub, txtcontent);
+            try
+            {
+                return mail.Send();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+        Sendmail("training-system@local.canon-vn.com.vn", item, "[CICE Library] New comment", CreateContent(COMMENT, Request.UrlReferrer.AbsoluteUri));
+        
+        public class Sendmail
+    {
+       const string SmtpHost = "mail.cvn.canon.co.jp";
+       const int SmtpPort = 2525;
+        MailMessage mail;
+        public Sendmail(string txtfrom, string txtto, string txtsub, string txtcontent)
+        {
+            mail = _createMail(txtfrom, txtto, txtsub, txtcontent);
+        }
+        private MailMessage _createMail(string txtfrom, string txtto, string txtsub, string txtcontent)
+        {
+            MailMessage mailMsg = new MailMessage();
+            mailMsg.From = new MailAddress(txtfrom);
+            mailMsg.To.Add(txtto);
+            mailMsg.Subject = txtsub;
+            mailMsg.IsBodyHtml = true;
+            mailMsg.Body = txtcontent;
+            mailMsg.Priority = MailPriority.Normal;
+            return mailMsg;
+        }
+        public bool Send()
+        {
+            try
+            {
+                var client = new SmtpClient()
+                {
+                    Host = SmtpHost,
+                    Port = SmtpPort, // Default port is 2525
+                };
+                client.Send(mail);
+                return true;
+            }
+            catch { }
+            return false;
+        }
+    }
