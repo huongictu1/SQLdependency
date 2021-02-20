@@ -1,0 +1,15 @@
+public override void OnActionExecuting(ActionExecutingContext filterContext)
+        {
+            string hasSession = filterContext.HttpContext.Session.GetString("username");
+            if (hasSession == "" || hasSession == null)
+            {
+                filterContext.Result = new RedirectToRouteResult(
+                    new RouteValueDictionary(
+                        new { controller = "Login", action = "Index" }));
+            }
+            Factory = HttpContext.Session.GetString("factory");
+            event_code = HttpContext.Session.GetString("event_code");
+            permission = HttpContext.Session.GetString("role");
+            typeSystem = HttpContext.Session.GetString("system");
+            base.OnActionExecuting(filterContext);
+        }
