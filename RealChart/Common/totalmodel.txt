@@ -1,0 +1,1417 @@
+package org.o7planning.model;
+
+import java.sql.*;
+import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.o7planning.bean.TotalBean;
+import org.o7planning.bean.UserBean;
+import org.o7planning.lib.ConnectionCon;
+
+public class TotalModel {
+	static Connection conn;
+	static PreparedStatement pst;
+	static ResultSet rs;
+
+	public int InsertUpdate(String sql) {
+
+		int kq = 0;
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			kq = pst.executeUpdate();
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return kq;
+
+	}
+	public int InsertUpdateLFromListQuery(ArrayList<String> lstQuery) {
+
+		int kq = 0;
+		try {
+			conn = ConnectionCon.getcon();
+			if(lstQuery != null && lstQuery.size() > 0) {
+				for(int i = 0; i < lstQuery.size(); i++) {
+					String sql = lstQuery.get(i);
+					try {
+						pst = conn.prepareStatement(sql);
+						kq += pst.executeUpdate();
+						//System.out.println(kq);
+					}catch(Exception e) {
+						continue;
+					}
+					
+				}
+			}
+			
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return kq;
+
+	}
+
+	public int checkCo(String sql) {
+		int kq = 0;
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				kq = rs.getInt("sl");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+		return kq;
+
+	}
+
+	public ArrayList<TotalBean> GetCheck(String sql) {
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+
+				TotalBean tt = new TotalBean(admi_acct_nm, cost_center, cost_center_name, location_nm);
+
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+
+	}
+	public ArrayList<String> GetMailPICRemindConfirmation(String factory) {
+		ArrayList<String> listResult = new ArrayList<>();
+		ArrayList<String> listMail = new ArrayList<>();
+		String nhamay = "'Thang Long','Tien Son'";
+		if(factory.equals("Que Vo")) {
+			nhamay = "'Que Vo'";
+		}
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement("SELECT distinct cost_center\r\n" + 
+					"from tbl_total\r\n" + 
+					"where picdept is null\r\n" + 
+					"and admi_acct_nm in (" + nhamay + ")");
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String cost_center = rs.getString("cost_center");
+				listMail.add(cost_center);
+			}
+			for(int i = 0; i < listMail.size(); i++) {
+				pst = conn.prepareStatement("select distinct email\r\n" + 
+						"from tbl_user\r\n" + 
+						"where cost_center like '%" + listMail.get(i) + "%' and grade like '%PIC%'");
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					String mail = rs.getString("email");
+					listResult.add(mail);
+				}
+			}
+			conn.close();
+		} catch (Exception e) {
+			listResult = null;
+		}
+
+		// close connection
+
+		return listResult;
+
+	}
+	public ArrayList<String> GetMailMGRRemindConfirmation(String factory) {
+		ArrayList<String> listResult = new ArrayList<>();
+		ArrayList<String> listMail = new ArrayList<>();
+		String nhamay = "'Thang Long','Tien Son'";
+		if(factory.equals("Que Vo")) {
+			nhamay = "'Que Vo'";
+		}
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement("SELECT distinct cost_center\r\n" + 
+					"from tbl_total\r\n" + 
+					"where picdept is not null and mgrdept is null\r\n" + 
+					"and admi_acct_nm in (" + nhamay + ")");
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String cost_center = rs.getString("cost_center");
+				listMail.add(cost_center);
+			}
+			for(int i = 0; i < listMail.size(); i++) {
+				pst = conn.prepareStatement("select distinct email\r\n" + 
+						"from tbl_user\r\n" + 
+						"where cost_center like '%" + listMail.get(i) + "%' and grade like '%MGR%'");
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					String mail = rs.getString("email");
+					listResult.add(mail);
+				}
+			}
+			conn.close();
+		} catch (Exception e) {
+			listResult = null;
+		}
+
+		// close connection
+
+		return listResult;
+
+	}
+	//quét những con asset nào có sub khác 1 chưa được confirm, xảy ra khi upfile, sub 1 đã confirm nhưng sub mới chưa được confirm
+	public String ConfirmForNotyet(String factory) {
+		String nhamay = "'Thang Long','Tien Son'";
+		if(factory.equals("Que Vo")) {
+			nhamay = "'Que Vo'";
+		}
+		ArrayList<String> lstAsset = new ArrayList<String>();
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement("select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where asset_no in (\r\n" + 
+					"select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and picdept is not null\r\n" + 
+					") and sub_asset_no != '1' and picdept is null\r\n" + 
+					"and admi_acct_nm in (" + nhamay + ") and request_status != '0'");
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String asset_no = rs.getString("asset_no");
+				lstAsset.add(asset_no);
+			}
+			if(lstAsset != null && lstAsset.size() > 0) {
+				for(int i = 0; i < lstAsset.size(); i++) {
+					String sql = "update tbl_total\r\n" + 
+							"set picdept = (select picdept from tbl_total where asset_no = '" + lstAsset.get(i) + "' and sub_asset_no = '1'),\r\n" + 
+							"mgrdept = (select mgrdept from tbl_total where asset_no = '" + lstAsset.get(i) + "' and sub_asset_no = '1'),\r\n" + 
+							"picmea = (select picmea from tbl_total where asset_no = '" + lstAsset.get(i) + "' and sub_asset_no = '1'),\r\n" + 
+							"mgrmea = (select mgrmea from tbl_total where asset_no = '" + lstAsset.get(i) + "' and sub_asset_no = '1')\r\n" + 
+							"where asset_no = '" + lstAsset.get(i) + "' and sub_asset_no != '1'";
+					pst = conn.prepareStatement(sql);
+					pst.executeUpdate();
+				}
+			}
+			conn.close();
+		} catch (Exception e) {
+			
+		}
+
+		// close connection
+
+		return "";
+
+	}
+	public TotalBean CheckExists(String asset_no, String sub_asset) {
+		TotalBean result = null;
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement("SELECT total_id, asset_nm, cost_center, class_cd, acq_val_comp,\r\n" + 
+					" admi_acct_nm, cost_center_name, location_nm, kind_cd, kind_nm,\r\n" + 
+					" class_nm, nbv, die_no, process\r\n" +  
+					"	FROM tbl_total\r\n" + 
+					"	where asset_no = '" + asset_no + "' and sub_asset_no = '" + sub_asset + "' and (request_status = '1' or request_status is null) limit 1");
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_nm = rs.getString("asset_nm");
+				String cost_center = rs.getString("cost_center");
+				String class_cd = rs.getString("class_cd");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				String kind_cd = rs.getString("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_nm = rs.getString("class_nm");
+				String nbv = rs.getString("nbv");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				
+				int iKind_cd = 0;
+				if(kind_cd != null && !kind_cd.equals("")) {
+					iKind_cd = Integer.parseInt(kind_cd);
+				}
+				float fNbv = 0;
+				if(nbv != null && !nbv.equals("")) {
+					fNbv = Float.parseFloat(nbv);
+				}
+				
+				TotalBean tt = new TotalBean(total_id, asset_nm, cost_center, class_cd, acq_val_comp,
+						admi_acct_nm,cost_center_name,location_nm,iKind_cd,kind_nm,class_nm,
+						fNbv,die_no,process);
+
+				result = tt;
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return result;
+
+	}
+	public ArrayList<TotalBean> CheckListExists(ArrayList<TotalBean> lstTotal) {
+		ArrayList<TotalBean> result = new ArrayList<TotalBean>();
+		conn = ConnectionCon.getcon();
+		try {
+			for(int i = 0; i < lstTotal.size(); i++) {
+				String asset_no = lstTotal.get(i).getAsset_no();
+				int sub_asset = lstTotal.get(i).getSub_asset_no();
+				String sql = "SELECT total_id, asset_nm, cost_center, class_cd, acq_val_comp,\r\n" + 
+						" admi_acct_nm, capital_budget_code, cost_center_name, location_nm, kind_cd, kind_nm,\r\n" + 
+						" class_nm, nbv, die_no, process, cds_no, cds_location, request_status\r\n" +  
+						"	FROM tbl_total\r\n" + 
+						"	where asset_no = '" + asset_no + "' and sub_asset_no = '" + sub_asset + "' and request_status = '0' and request_note = 'delete tempp when upfile' limit 1";
+				
+				result.add(ReturnTotalFromResultSet(sql));
+			}
+			
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return result;
+
+	}
+	public TotalBean ReturnTotalFromResultSet(String sql) {
+		TotalBean tt = new TotalBean();
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_nm = rs.getString("asset_nm");
+				String cost_center = rs.getString("cost_center");
+				String class_cd = rs.getString("class_cd");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				String capital_budgget_code = rs.getString("capital_budgget_code");
+				
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				String kind_cd = rs.getString("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_nm = rs.getString("class_nm");
+				String nbv = rs.getString("nbv");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String cds_no = rs.getString("cds_no");
+				String cds_location = rs.getString("cds_location");
+				
+				int iKind_cd = 0;
+				if(kind_cd != null && !kind_cd.equals("")) {
+					iKind_cd = Integer.parseInt(kind_cd);
+				}
+				float fNbv = 0;
+				if(nbv != null && !nbv.equals("")) {
+					fNbv = Float.parseFloat(nbv);
+				}
+				
+				tt = new TotalBean(total_id, asset_nm, cost_center, class_cd, acq_val_comp,
+						admi_acct_nm,cost_center_name,location_nm,iKind_cd,kind_nm,class_nm,
+						fNbv,die_no,process);
+				tt.setCds_no(cds_no);
+				tt.setCds_location(cds_location);
+				tt.setCapital_budget_code(capital_budgget_code);
+			}
+			return tt;
+		}catch(Exception e) {
+			tt.setTotal_id(0);
+			return tt;
+		}
+	}
+	public void ThucHienSQL(String sql) {
+		
+		
+	    try {
+			
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			 pst.executeUpdate();
+			
+			conn.close();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+	}
+	public ArrayList<TotalBean> getList(String contextPath, int startRow, int recordsPerPage, String txtSearch, String fac, String cos) {
+		String cost_centerACC = DisposalModel.getDeptByFactory(fac, "ACC");
+		String cost_centerMEA = DisposalModel.getDeptByFactory(fac, "MEA");
+		String cost_centerLOG = DisposalModel.getDeptByFactory(fac, "LOG");
+		int isMEA = DisposalModel.isDept(cos, cost_centerMEA);
+		int isACC = DisposalModel.isDept(cos, cost_centerACC);
+		int isLOG = DisposalModel.isDept(cos, cost_centerLOG);
+		
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = "";
+		if(isMEA == 1 || isACC == 1 || isLOG == 1) {
+			if (txtSearch.trim() == "") {
+				sql = "SELECT * FROM tbl_total where request_status != '0' order by mgrmea desc LIMIT " + recordsPerPage + " OFFSET " + startRow + "   ";
+			} else {
+				sql = " SELECT * FROM tbl_total where request_status != '0' and (asset_no = '"+txtSearch+"' or asset_nm = '"+txtSearch+"' or admi_acct_nm = '"+txtSearch+"' or cost_center = '"+txtSearch+"' or cost_center_name = '"+txtSearch+"' or location_nm = '"+txtSearch+"' or kind_nm = '"+txtSearch+"' or class_cd = '"+txtSearch+"' or class_nm = '"+txtSearch+"' or acq_date = '"+txtSearch+"' or ope_date = '"+txtSearch+"' or supplier_name = '"+txtSearch+"' or capital_budget_code = '"+txtSearch+"' or note1 = '"+txtSearch+"' or note2 = '"+txtSearch+"' or invoice_no = '"+txtSearch+"' or die_no = '"+txtSearch+"'  or process = '"+txtSearch+"' or name_old_fa = '"+txtSearch+"') order by mgrmea desc LIMIT "+ recordsPerPage +" OFFSET "+ startRow +" ";
+			
+			}
+		}else {
+			if (txtSearch.trim() == "") {
+				sql = "SELECT * FROM tbl_total where '" + cos + "' LIKE '%' || cost_center || '%' and request_status != '0' order by mgrmea desc LIMIT " + recordsPerPage + " OFFSET " + startRow + "   ";
+			} else {
+				sql = " SELECT * FROM tbl_total where '" + cos + "' LIKE '%' || cost_center || '%' and request_status != '0' and (asset_no = '"+txtSearch+"' or asset_nm = '"+txtSearch+"' or admi_acct_nm = '"+txtSearch+"' or cost_center = '"+txtSearch+"' or cost_center_name = '"+txtSearch+"' or location_nm = '"+txtSearch+"' or kind_nm = '"+txtSearch+"' or class_cd = '"+txtSearch+"' or class_nm = '"+txtSearch+"' or acq_date = '"+txtSearch+"' or ope_date = '"+txtSearch+"' or supplier_name = '"+txtSearch+"' or capital_budget_code = '"+txtSearch+"' or note1 = '"+txtSearch+"' or note2 = '"+txtSearch+"' or invoice_no = '"+txtSearch+"' or die_no = '"+txtSearch+"'  or process = '"+txtSearch+"' or name_old_fa = '"+txtSearch+"') order by mgrmea desc LIMIT "+ recordsPerPage +" OFFSET "+ startRow +" ";
+			
+			}
+		}
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_no = rs.getString("asset_no");
+				int sub_asset_no = rs.getInt("sub_asset_no");
+				String asset_nm = rs.getString("asset_nm");
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				int kind_cd = rs.getInt("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_cd = rs.getString("class_cd");
+				String class_nm = rs.getString("class_nm");
+				String acq_date = rs.getString("acq_date");
+				String ope_date = rs.getString("ope_date");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				float nbv = rs.getFloat("nbv");
+				String supplier_name = rs.getString("supplier_name");
+				String capital_budget_code = rs.getString("capital_budget_code");
+				String note1 = rs.getString("note1");
+				String note2 = rs.getString("note2");
+				String invoice_no = rs.getString("invoice_no");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String name_old_fa = rs.getString("name_old_fa");
+				String request_status = rs.getString("request_status");
+				String picdept = rs.getString("picdept");
+				String mgrdept = rs.getString("mgrdept");
+				String picmea = rs.getString("picmea");
+				String mgrmea = rs.getString("mgrmea");
+				
+				String cds_no = rs.getString("cds_no");
+				String cds_location = rs.getString("cds_location");
+				
+				float updated_acq_val_comp = rs.getFloat("updated_acq_val_comp");
+				String updated_cost_center = checkNull(rs.getString("updated_cost_center"));
+				String updated_asset_nm = checkNull(rs.getString("updated_asset_nm"));
+				String updated_class_cd = checkNull(rs.getString("updated_class_cd"));
+				String updated_capital_budget_code = checkNull(rs.getString("updated_capital_budget_code"));
+				
+				String updated_by = checkNull(rs.getString("updated_by"));
+				String updated_date = checkNull(rs.getString("updated_date"));
+				
+				String status = "Available";
+				if(request_status.equals("1")) {
+					status = "Available";
+				}else if(request_status.equals("2") || request_status.equals("3") ||request_status.equals("4") ||request_status.equals("5") ||request_status.equals("6") ||request_status.equals("7") ||request_status.equals("8") ||request_status.equals("9") ||request_status.equals("10")) {
+					status = "Disposing";
+				}else if(request_status.equals("11") || request_status.equals("12") ||request_status.equals("13") ||request_status.equals("14") ||request_status.equals("15") ||request_status.equals("16") ||request_status.equals("17") ||request_status.equals("18") ||request_status.equals("19")) {
+					status = "Transfering";
+				}
+				
+				String confirmScript = "<a class=\"btn btn-sm btn-warning text-danger font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Waiting for confirmation</a>";
+				if(picdept != null && mgrdept != null && picmea != null && mgrmea != null) {
+					confirmScript = "<a class=\"btn btn-sm btn-dark text-light font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Confirmed</a>";
+				}
+				else if(picdept == null) {
+					confirmScript = "<a class=\"btn btn-sm btn-warning text-light font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Waiting PIC Dept Confirm</a>";
+				}
+				else if(mgrdept == null) {
+					confirmScript = "<a class=\"btn btn-sm btn-warning text-light font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Waiting MGR Dept Confirm</a>";
+				}
+				else if(picmea == null) {
+					confirmScript = "<a class=\"btn btn-sm btn-warning text-light font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Waiting PIC MEA Confirm</a>";
+				}
+				else if(mgrmea == null) {
+					confirmScript = "<a class=\"btn btn-sm btn-warning text-light font-weight-bold\" href=\"" + contextPath + "/confirmInfor?assetNo="+ asset_no + "\" id=\""+ asset_no + "\" target=\"_blank\">Waiting MGR MEA Confirm</a>";
+				}
+				TotalBean tt = new TotalBean(total_id, asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center,
+						cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, dateStringWithSymbol(acq_date), dateStringWithSymbol(ope_date),
+						acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no,
+						process, name_old_fa,status,updated_acq_val_comp,updated_asset_nm,updated_class_cd,updated_cost_center,updated_by,updated_date);
+				tt.setMgrmea(confirmScript);
+				tt.setCds_no(cds_no);
+				tt.setCds_location(cds_location);
+				tt.setUpdated_capital_budget_code(updated_capital_budget_code);
+				
+				listTotal.add(tt);
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return listTotal;
+	}
+	public String checkNull(String item) {
+		if(item == null) {
+			return "";
+		}
+		return item;
+	}
+	public int getSumRowNews(String txtSearch, String fac, String cos) {
+		String cost_centerACC = DisposalModel.getDeptByFactory(fac, "ACC");
+		String cost_centerMEA = DisposalModel.getDeptByFactory(fac, "MEA");
+		String cost_centerLOG = DisposalModel.getDeptByFactory(fac, "LOG");
+		int isMEA = DisposalModel.isDept(cos, cost_centerMEA);
+		int isACC = DisposalModel.isDept(cos, cost_centerACC);
+		int isLOG = DisposalModel.isDept(cos, cost_centerLOG);
+		int sum = 0;
+		String sql = "";
+		conn = ConnectionCon.getcon();
+		if(isMEA == 1 || isACC == 1 || isLOG == 1) {
+			if (txtSearch.trim() == "") {
+				sql = "SELECT count(*) sum_row FROM tbl_total where request_status != '0'";
+			} else {
+				sql = " SELECT count(*) sum_row FROM tbl_total where request_status != '0' and (asset_no = '"+txtSearch+"' or asset_nm = '"+txtSearch+"' or admi_acct_nm = '"+txtSearch+"' or cost_center = '"+txtSearch+"' or cost_center_name = '"+txtSearch+"' or location_nm = '"+txtSearch+"' or kind_nm = '"+txtSearch+"' or class_cd = '"+txtSearch+"' or class_nm = '"+txtSearch+"' or acq_date = '"+txtSearch+"' or ope_date = '"+txtSearch+"' or supplier_name = '"+txtSearch+"' or capital_budget_code = '"+txtSearch+"' or note1 = '"+txtSearch+"' or note2 = '"+txtSearch+"' or invoice_no = '"+txtSearch+"' or die_no = '"+txtSearch+"'  or process = '"+txtSearch+"' or name_old_fa = '"+txtSearch+"')  ";
+				
+			}
+		}else {
+			if (txtSearch.trim() == "") {
+				sql = "SELECT count(*) sum_row FROM tbl_total where '" + cos + "' LIKE '%' || cost_center || '%' and request_status != '0'";
+			} else {
+				sql = " SELECT count(*) sum_row FROM tbl_total where '" + cos + "' LIKE '%' || cost_center || '%' and request_status != '0' and (asset_no = '"+txtSearch+"' or asset_nm = '"+txtSearch+"' or admi_acct_nm = '"+txtSearch+"' or cost_center = '"+txtSearch+"' or cost_center_name = '"+txtSearch+"' or location_nm = '"+txtSearch+"' or kind_nm = '"+txtSearch+"' or class_cd = '"+txtSearch+"' or class_nm = '"+txtSearch+"' or acq_date = '"+txtSearch+"' or ope_date = '"+txtSearch+"' or supplier_name = '"+txtSearch+"' or capital_budget_code = '"+txtSearch+"' or note1 = '"+txtSearch+"' or note2 = '"+txtSearch+"' or invoice_no = '"+txtSearch+"' or die_no = '"+txtSearch+"'  or process = '"+txtSearch+"' or name_old_fa = '"+txtSearch+"')  ";
+				
+			}
+		}
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			if (rs.next()) {
+				sum = rs.getInt("sum_row");
+			}
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return sum;
+	}
+
+	public ArrayList<String> CheckAssetNo(String asset_no) {
+
+		ArrayList<String> lst = new ArrayList<String>();
+
+		conn = ConnectionCon.getcon();
+
+		String sql = "SELECT(";
+		sql += "      SELECT COUNT(*) FROM   tbl_total  where  request_status != '0' and asset_no='" + asset_no + "' ";
+		sql += "	  ) AS tongsodong,";
+		sql += "	  (";
+		sql += "		 select nbv from tbl_total where  request_status != '0' and asset_no='" + asset_no
+				+ "' order by sub_asset_no desc limit 1";
+		sql += "	  ) AS nbv";
+		sql += " FROM tbl_total where request_status != '0' limit 1";
+
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			if (rs.next()) {
+				lst.add(rs.getString("tongsodong"));
+				lst.add(rs.getString("nbv"));
+			}
+
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return lst;
+	}
+	
+	public static String GetOriginalCost_center(String asset_no, String cost_center) {
+
+		String result = cost_center;
+
+		conn = ConnectionCon.getcon();
+
+		String sql = "select cost_center, cost_center_name, created_date\r\n" + 
+				"from tbl_total_history\r\n" + 
+				"where asset_no = '" + asset_no + "'\r\n" + 
+				"order by created_date asc\r\n" + 
+				"limit 1";
+
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			if (rs.next()) {
+				result = rs.getString("cost_center") + " - " + rs.getString("cost_center_name");
+			}
+
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+	
+	public ArrayList<String> getTransferHistory(String assetNo){
+		try {
+			String sql = "SELECT d.id, d.cost_center, d.grade, d.date_confirm, \r\n" + 
+					"concat(d.employee_code, ' - ', u.last_name, ' ', u.first_name) as employee_name,\r\n" + 
+					"concat(d.cost_center, ' - ', c.cost_center_name) as cost_center\r\n" + 
+					"	FROM tbl_transfer_history2 h\r\n" + 
+					"	join tbl_transfer_detail_history2 d on d.transfer_no = h.transfer_no\r\n" + 
+					"	join tbl_user u on u.employee_code = d.employee_code\r\n" + 
+					"	join tbl_cost_center c on c.cost_center = d.cost_center\r\n" + 
+					"	where h.asset_no = '" + assetNo + "' and d.active = 'true'\r\n" + 
+					"	order by id asc\r\n" + 
+					"	limit 2";
+		}catch(Exception e){
+			
+		}
+		return null;
+	}
+	public List<String> checkAsset(String assetNo) {
+		// TODO Auto-generated method stub
+		TotalBean tt = new TotalBean();
+		List<String> lst = new ArrayList<String>();
+		String sql = " select asset_no,asset_nm,note1 from tbl_total where request_status != '0' and asset_no='"+assetNo+"' order by sub_asset_no asc  limit 1 ";
+		
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			if (rs.next()) {
+				
+				lst.add(rs.getString("asset_no"));
+				lst.add(rs.getString("asset_nm"));
+				lst.add(rs.getString("note1"));
+			
+			}
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return lst;
+		
+		
+	}
+
+	public List<UserBean> checkCodePIC(String codect) {
+		// TODO Auto-generated method stub
+		String sql=" select employee_code,concat(last_name,' ',first_name) fullname from tbl_user where cost_center like '%"+codect.trim()+"%' and grade like '%PIC%' ";
+		ArrayList<UserBean> listTotal = new ArrayList<>();
+		
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				String employee_code = rs.getString("employee_code");
+				String fullname = rs.getString("fullname");
+				
+				
+				UserBean tt = new UserBean(employee_code, fullname);
+				
+				
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+	
+	public List<UserBean> checkCodeMGR(String codect) {
+		// TODO Auto-generated method stub
+		String sql=" select employee_code,concat(last_name,' ',first_name) fullname from tbl_user where cost_center like '%"+codect.trim()+"%' and grade like '%MGR%'  ";
+		ArrayList<UserBean> listTotal = new ArrayList<>();
+		
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				String employee_code = rs.getString("employee_code");
+				String fullname = rs.getString("fullname");
+				
+				
+				UserBean tt = new UserBean(employee_code, fullname);
+				
+				
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+
+	public String getcosttt(String user) {
+		// TODO Auto-generated method stub
+		String sql=" select cost_center from tbl_user where employee_code='"+user+"' limit 1 ";
+		String ctt="";
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				ctt = rs.getString("cost_center");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return ctt;
+	}
+
+	public String getaa(String asset_no) {
+		// TODO Auto-generated method stub
+		String sql="select cost_center from tbl_total where request_status != '0' and asset_no='"+asset_no+"' and request_status='1' limit 1 ";
+		String ctt="";
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				ctt = rs.getString("cost_center");
+
+			}
+			//check xem bất kỳ sub của asset đó có nằm trong request nào khác hay không
+			sql = "select 'exists' as kq\r\n" + 
+					"from tbl_total \r\n" + 
+					"where asset_no='" + asset_no + "' and request_status != '1' and request_status != '0' limit 1 ";
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				ctt = rs.getString("kq");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			
+		}
+
+		// close connection
+
+		return ctt;
+	}
+	public String dateStringWithSymbol(String dateStr) {
+	    return dateStr.substring(0, 4) + "-" + dateStr.substring(4, 6) + "-" + dateStr.substring(6, 8);
+	}
+	public String numberWithCommas(float x) {
+		DecimalFormat formatter = new DecimalFormat("#,###.##");
+	    return formatter.format(x);
+	}
+	public String numberWithCommas1(String s) {
+		DecimalFormat formatter = new DecimalFormat("#,###.##");
+	    return formatter.format(Float.parseFloat(s));
+	}
+	public List<TotalBean> getDanhsach() {
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = "SELECT * FROM tbl_total where request_status != '0' order by total_id asc";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_no = rs.getString("asset_no");
+				int sub_asset_no = rs.getInt("sub_asset_no");
+				String asset_nm = rs.getString("asset_nm");
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				int kind_cd = rs.getInt("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_cd = rs.getString("class_cd");
+				String class_nm = rs.getString("class_nm");
+				String acq_date = rs.getString("acq_date");
+				String ope_date = rs.getString("ope_date");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				float nbv = rs.getFloat("nbv");
+				String supplier_name = rs.getString("supplier_name");
+				String capital_budget_code = rs.getString("capital_budget_code");
+				String note1 = rs.getString("note1");
+				String note2 = rs.getString("note2");
+				String invoice_no = rs.getString("invoice_no");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String name_old_fa = rs.getString("name_old_fa");
+				String request_status = rs.getString("request_status");
+				String cds_no = rs.getString("cds_no");
+				String cds_location = rs.getString("cds_location");
+				
+				String picdept = rs.getString("picdept");
+				String mgrdept = rs.getString("mgrdept");
+				String picmea = rs.getString("picmea");
+				String mgrmea = rs.getString("mgrmea");
+
+				TotalBean tt = new TotalBean(total_id, asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center,
+						cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date,
+						acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no,
+						process, name_old_fa,request_status);
+				tt.setCds_no(cds_no);
+				tt.setCds_location(cds_location);
+				tt.setPicdept(picdept);
+				tt.setMgrdept(mgrdept);
+				tt.setPicmea(picmea);
+				tt.setMgrmea(mgrmea);
+				
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+	public List<TotalBean> getDanhsach1(String cc) {
+		String costcenter = "'" + cc.replace(",", "','") + "'";
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = "SELECT * FROM tbl_total where request_status != '0' and cost_center in (" + costcenter + ") order by total_id asc";
+		if(costcenter.contains("6700") || costcenter.contains("1200") 
+				|| costcenter.contains("9900") || costcenter.contains("9910") || costcenter.contains("9920")) {
+			sql = "SELECT * FROM tbl_total where request_status != '0' order by total_id asc";
+		}
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_no = rs.getString("asset_no");
+				int sub_asset_no = rs.getInt("sub_asset_no");
+				String asset_nm = rs.getString("asset_nm");
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				int kind_cd = rs.getInt("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_cd = rs.getString("class_cd");
+				String class_nm = rs.getString("class_nm");
+				String acq_date = rs.getString("acq_date");
+				String ope_date = rs.getString("ope_date");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				float nbv = rs.getFloat("nbv");
+				String supplier_name = rs.getString("supplier_name");
+				String capital_budget_code = rs.getString("capital_budget_code");
+				String note1 = rs.getString("note1");
+				String note2 = rs.getString("note2");
+				String invoice_no = rs.getString("invoice_no");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String name_old_fa = rs.getString("name_old_fa");
+				String request_status = rs.getString("request_status");
+				String cds_no = rs.getString("cds_no");
+				String cds_location = rs.getString("cds_location");
+				
+				String picdept = rs.getString("picdept");
+				String mgrdept = rs.getString("mgrdept");
+				String picmea = rs.getString("picmea");
+				String mgrmea = rs.getString("mgrmea");
+
+				TotalBean tt = new TotalBean(total_id, asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center,
+						cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date,
+						acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no,
+						process, name_old_fa,request_status);
+				tt.setCds_no(cds_no);
+				tt.setCds_location(cds_location);
+				tt.setPicdept(picdept);
+				tt.setMgrdept(mgrdept);
+				tt.setPicmea(picmea);
+				tt.setMgrmea(mgrmea);
+				
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+	
+	public List<TotalBean> GetListByAsset(String assetNo) {
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " SELECT * FROM tbl_total where request_status != '0' and asset_no='"+assetNo+"' order by sub_asset_no asc limit 1 ";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_no = rs.getString("asset_no");
+				int sub_asset_no = rs.getInt("sub_asset_no");
+				String asset_nm = rs.getString("asset_nm");
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				int kind_cd = rs.getInt("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_cd = rs.getString("class_cd");
+				String class_nm = rs.getString("class_nm");
+				String acq_date = rs.getString("acq_date");
+				String ope_date = rs.getString("ope_date");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				float nbv = rs.getFloat("nbv");
+				String supplier_name = rs.getString("supplier_name");
+				String capital_budget_code = rs.getString("capital_budget_code");
+				String note1 = rs.getString("note1");
+				String note2 = rs.getString("note2");
+				String invoice_no = rs.getString("invoice_no");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String name_old_fa = rs.getString("name_old_fa");
+				String mgrmea = rs.getString("mgrmea");
+				String mgrdept = rs.getString("mgrdept");
+				String picdept = rs.getString("picdept");
+				String picmea = rs.getString("picmea");
+				Date updated_date = rs.getDate("created_date");
+				String updated_by = rs.getString("updated_by");
+				DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");  
+                String strDate = dateFormat.format(updated_date);  
+                String cds_no = rs.getString("cds_no");
+                String cds_location = rs.getString("cds_location");
+
+				TotalBean tt = new TotalBean(total_id, asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center,
+						cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date,
+						acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no,
+						process, name_old_fa,mgrmea,mgrdept,picdept);
+				tt.setPicmea(picmea);
+				tt.setUpdated_by(updated_by);
+				tt.setUpdated_date(strDate);
+				tt.setCds_no(cds_no);
+				tt.setCds_location(cds_location);
+
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+	public List<TotalBean> GetChaningHistory(String assetNo) {
+		ArrayList<TotalBean> listTotal = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select *\r\n" + 
+				"from tbl_total_history\r\n" + 
+				"where request_status != '0' and asset_no = '" + assetNo + "' and sub_asset_no = '1'\r\n" + 
+				"union\r\n" + 
+				"SELECT * \r\n" + 
+				"FROM tbl_total \r\n" + 
+				"where request_status != '0' and asset_no = '" + assetNo + "'  and sub_asset_no = '1'\r\n" + 
+				"order by created_date asc, updated_date asc ";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				int total_id = rs.getInt("total_id");
+				String asset_no = rs.getString("asset_no");
+				int sub_asset_no = rs.getInt("sub_asset_no");
+				String asset_nm = rs.getString("asset_nm");
+				String admi_acct_nm = rs.getString("admi_acct_nm");
+				String cost_center = rs.getString("cost_center");
+				String cost_center_name = rs.getString("cost_center_name");
+				String location_nm = rs.getString("location_nm");
+				int kind_cd = rs.getInt("kind_cd");
+				String kind_nm = rs.getString("kind_nm");
+				String class_cd = rs.getString("class_cd");
+				String class_nm = rs.getString("class_nm");
+				String acq_date = rs.getString("acq_date");
+				String ope_date = rs.getString("ope_date");
+				float acq_val_comp = rs.getFloat("acq_val_comp");
+				float nbv = rs.getFloat("nbv");
+				String supplier_name = rs.getString("supplier_name");
+				String capital_budget_code = rs.getString("capital_budget_code");
+				String note1 = rs.getString("note1");
+				String note2 = rs.getString("note2");
+				String invoice_no = rs.getString("invoice_no");
+				String die_no = rs.getString("die_no");
+				String process = rs.getString("process");
+				String name_old_fa = rs.getString("name_old_fa");
+				String mgrmea = rs.getString("mgrmea");
+				String mgrdept = rs.getString("mgrdept");
+				String picdept = rs.getString("picdept");
+				String picmea = rs.getString("picmea");
+				float updated_acq_val_comp = rs.getFloat("updated_acq_val_comp");
+				String updated_class_cd = rs.getString("updated_class_cd");
+				String updated_cost_center = rs.getString("updated_cost_center");
+				String updated_asset_nm = rs.getString("updated_asset_nm");
+				String updated_capital_budget_code = rs.getString("updated_capital_budget_code");
+				
+				Date updated_date = rs.getDate("created_date");
+				String updated_by = rs.getString("updated_by");
+				DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");  
+                String strDate = dateFormat.format(updated_date);  
+
+				TotalBean tt = new TotalBean(total_id, asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center,
+						cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date,
+						acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no,
+						process, name_old_fa,mgrmea,mgrdept,picdept);
+				tt.setPicmea(picmea);
+				tt.setUpdated_by(updated_by);
+				tt.setUpdated_date(strDate);
+				tt.setUpdated_acq_val_comp(updated_acq_val_comp);
+				tt.setUpdated_class_cd(updated_class_cd);
+				tt.setUpdated_cost_center(updated_cost_center);
+				tt.setUpdated_asset_nm(updated_asset_nm);
+				tt.setUpdated_capital_budget_code(updated_capital_budget_code);
+				
+				listTotal.add(tt);
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return listTotal;
+	}
+	
+	public String getDeptmgr(String cost_center) {
+		String Deptmgr="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select employee_code from tbl_user where cost_center like '%"+cost_center.trim()+"%' and grade like '%MGR%'";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				 Deptmgr += rs.getString("employee_code") + ",";
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return Deptmgr;
+	}
+
+	public String getEmailmgr(String cost_center) {
+		String Deptmgr="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select email from tbl_user where cost_center like '%"+cost_center.trim()+"%' and grade like '%MGR%' limit 1 ";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				 Deptmgr = rs.getString("email");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return Deptmgr;
+	}
+	public String getEmailpic(String cost_center) {
+		String Deptpic="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select email from tbl_user where cost_center like '%"+cost_center.trim()+"%' and grade like '%PIC%'";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				Deptpic += rs.getString("email") + "; ";
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return Deptpic;
+	}
+	public ArrayList<String> getListEmailpic(String cost_center) {
+		ArrayList<String> lstResult = new ArrayList<String>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select email from tbl_user where cost_center like '%"+cost_center.trim()+"%' and grade like '%PIC%'";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				lstResult.add(rs.getString("email"));
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return lstResult;
+	}
+	public String getLinkapproveMEAmgr(String cost_center) {
+		String result = "";
+		try {
+			conn = ConnectionCon.getcon();
+			String sql = "select employee_code,factory\r\n" + 
+					"from tbl_user\r\n" + 
+					"where grade like '%MGR%' and cost_center like '%" + cost_center + "%'\r\n" + 
+					"limit 1";
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String code = rs.getString("employee_code");
+				String fact = rs.getString("factory");
+				result = "&username=" + code + "&factory=" + fact + "&cost_center=" + cost_center;
+			}
+			conn.close();
+			return result;
+		}
+		catch(Exception e) {
+			return result;
+		}
+	}
+	public String getMEAmgr(String cost_center) {
+		String Deptmea="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select employee_code from tbl_user where cost_center like '%"+cost_center+"%' and grade like '%MGR%'";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				Deptmea += rs.getString("employee_code") + ",";
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return Deptmea;
+	}
+	public String getMEApic(String cost_center) {
+		String Deptmea="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select employee_code from tbl_user where cost_center like '%"+cost_center+"%' and grade like '%PIC%'";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				Deptmea += rs.getString("employee_code") + ",";
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return Deptmea;
+	}
+	public void deptap(String assetNo, String user, String dateStr) {
+		// TODO Auto-generated method stub
+		 String sql=" update tbl_total set mgrdept='"+user+"-"+dateStr+"' where asset_no='"+assetNo+"' ";
+			
+		    try {
+				
+				conn = ConnectionCon.getcon();
+				pst = conn.prepareStatement(sql);
+
+				 pst.executeUpdate();
+				
+				conn.close();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		
+	}
+	public void MEAap(String assetNo, String user, String dateStr) {
+		// TODO Auto-generated method stub
+		 String sql=" update tbl_total set mgrmea='"+user+"-"+dateStr+"' where asset_no='"+assetNo+"' ";
+			
+		    try {
+				
+				conn = ConnectionCon.getcon();
+				pst = conn.prepareStatement(sql);
+
+				 pst.executeUpdate();
+				
+				conn.close();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		
+	}
+	public void PICMEAap(String assetNo, String user, String dateStr) {
+		// TODO Auto-generated method stub
+		 String sql=" update tbl_total set picmea='"+user+"-"+dateStr+"' where asset_no='"+assetNo+"' ";
+			
+		    try {
+				
+				conn = ConnectionCon.getcon();
+				pst = conn.prepareStatement(sql);
+				 pst.executeUpdate();
+				
+				conn.close();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		
+	}
+	public void PICap(String assetNo, String user, String dateStr) {
+		// TODO Auto-generated method stub
+		 String sql=" update tbl_total set picdept='"+user+"-"+dateStr+"' where asset_no='"+assetNo+"' ";
+			
+		    try {
+				
+				conn = ConnectionCon.getcon();
+				pst = conn.prepareStatement(sql);
+
+				 pst.executeUpdate();
+				
+				conn.close();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		
+	}
+	public static String getUserInfo(String user) {
+		String[] items = user.split("-");
+		String code = items[0];
+		String dateStr = items[1];
+		String result = "";
+		String sql="SELECT concat(employee_code, ' - ', last_name, ' ', first_name) as employee_name\r\n" + 
+				"FROM tbl_user\r\n" + 
+				"where employee_code = '" + code.trim() + "'";
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				result = rs.getString("employee_name");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return result + "&" + dateStr;
+	}
+	//lấy người đã upload file, ngày giờ upload
+	public static String getMEAuploadFile(String user) {
+		String result = "";
+		String sql="SELECT concat(employee_code, ' - ', last_name, ' ', first_name) as employee_name\r\n" + 
+				"FROM tbl_user\r\n" + 
+				"where employee_code = '" + user.trim() + "'";
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				result = rs.getString("employee_name");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+	public List<String> getDanhsachPIC(String cost_center) {
+		String sql="select employee_code from tbl_user where cost_center like '%"+cost_center+"%' ";
+		List<String> lst= new ArrayList<String>();
+		try {
+			conn = ConnectionCon.getcon();
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				lst.add(rs.getString("employee_code"));
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		
+		return lst;
+	}
+
+	public String getlocation(String assetNo) {
+		String location="";
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = " select location_nm from tbl_total where request_status != '0' and asset_no='"+assetNo+"' limit 1  ";
+		
+
+		try {
+			pst = conn.prepareStatement(sql);
+
+			rs = pst.executeQuery();
+			while (rs.next()) {
+
+				location = rs.getString("location_nm");
+
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// close connection
+
+		return location;
+	}
+
+}
