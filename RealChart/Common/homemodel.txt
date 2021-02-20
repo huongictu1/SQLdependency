@@ -1,0 +1,1612 @@
+package org.o7planning.model;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import org.o7planning.bean.*;
+import org.o7planning.lib.*;
+
+
+public class HomeModel {
+	static Connection conn;
+	static PreparedStatement pst;
+	static ResultSet rs;
+	//lấy ra các loại tài sản hiện có theo nhà máy
+	public ArrayList<String> getListKind(String fact) {
+		try {
+			ArrayList<String> categories = new ArrayList<String>();
+			LocalDate currentDate = LocalDate.now();
+			int yearNow = currentDate.getYear();
+			conn = ConnectionCon.getcon();
+			String sql = "SELECT distinct kind_nm\r\n" + "FROM tbl_total\r\n" + "where acq_date like '" + yearNow
+					+ "%' and admi_acct_nm = '" + fact + "'";
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					String cat = rs.getString("kind_nm");
+					categories.add(cat);
+				}
+				conn.close();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+			return categories;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	//lấy ra các loại tài sản hiện có
+	public ArrayList<String> getListKind1() {
+		try {
+			ArrayList<String> categories = new ArrayList<String>();
+			LocalDate currentDate = LocalDate.now();
+			int yearNow = currentDate.getYear();
+			conn = ConnectionCon.getcon();
+			String sql = "SELECT distinct kind_nm\r\n" + "FROM tbl_total\r\n" + "where sub_asset_no = '1' and acq_date like '" + yearNow
+					+ "%'";
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					String cat = rs.getString("kind_nm");
+					categories.add(cat);
+				}
+				conn.close();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+			return categories;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	//biểu đồ theo loại tài sản
+	public String strGetListKind(String f) {
+		try {
+			String result = "";
+			ArrayList<String> strKind = getListKind(f);
+			LocalDate currentDate = LocalDate.now();
+			int yearNow = currentDate.getYear();
+			result += "select 'aaaaa' as kind_nm, '01' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "01%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '02' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "02%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '03' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "03%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '04' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "04%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '05' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "05%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '06' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "06%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '07' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "07%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '08' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "08%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '09' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "09%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '10' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "10%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '11' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "11%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			result += "select 'aaaaa' as kind_nm, '12' as month, count(*) as quantity from (\r\n"
+					+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+					+ "12%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + ") as tblTemp union ";
+			for (int i = 0; i < strKind.size(); i++) {
+				result += "select '" + strKind.get(i) + "' as kind_nm, '01' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "01%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '02' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "02%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '03' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "03%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '04' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "04%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '05' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "05%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '06' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "06%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '07' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "07%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '08' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "08%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '09' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "09%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '10' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "10%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '11' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "11%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select '" + strKind.get(i) + "' as kind_nm, '12' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "12%' \r\n" + "and admi_acct_nm = '" + f + "'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+			}
+			result = result.substring(0, result.length() - 6) + " order by kind_nm asc, month asc";
+			return result;
+		} catch (Exception e) {
+			return "";
+		}
+	}
+	//biểu đồ theo loại tài sản
+	public String strGetListKind1() {
+		try {
+			String result = "";
+			ArrayList<String> strKind = getListKind1();
+			LocalDate currentDate = LocalDate.now();
+			int yearNow = currentDate.getYear();
+			for (int i = 0; i < strKind.size(); i++) {
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '01' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "01%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '02' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "02%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '03' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "03%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '04' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "04%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '05' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "05%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '06' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "06%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '07' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "07%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '08' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "08%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '09' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "09%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '10' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "10%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '11' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "11%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'LBP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '12' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "12%' \r\n" + "and admi_acct_nm = 'Que Vo'\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				
+				
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '01' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "01%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '02' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "02%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '03' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "03%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '04' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "04%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '05' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "05%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '06' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "06%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '07' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "07%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '08' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "08%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '09' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "09%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '10' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "10%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '11' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "11%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+				result += "select 'IJP' as fact_nm, '" + strKind.get(i) + "' as kind_nm, '12' as month, count(*) as quantity from (\r\n"
+						+ "select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date like '" + yearNow
+						+ "12%' \r\n" + "and admi_acct_nm in ('Thang Long','Tien Son')\r\n" + "and kind_nm = '" + strKind.get(i)
+						+ "'\r\n" + ") as tblTemp union ";
+			}
+			result = result.substring(0, result.length() - 6) + " order by kind_nm asc, fact_nm desc, month asc";
+			return result;
+		} catch (Exception e) {
+			return "";
+		}
+	}
+	//biểu đồ theo loại tài sản
+	public String getListKindChart(String fact) {
+		try {
+			Random random = new Random();
+			String sql = strGetListKind(fact);
+			String result = "";
+			conn = ConnectionCon.getcon();
+			ArrayList<KindChart> lstStack = new ArrayList<KindChart>();
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("quantity");
+					String month = rs.getString("month");
+					String kind = rs.getString("kind_nm");
+					KindChart item = new KindChart(fact, month, kind, quantity);
+					lstStack.add(item);
+				}
+				conn.close();
+				for (int i = 0; i < 1; i++) {
+					String datai = "";
+					int iFrom = (i * 12);
+					int iTo = (i + 1) * 12;
+					for (int j = iFrom; j < iTo; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					int nextInt = random.nextInt(0xffffff + 1);
+					String colorCode = String.format("#%06x", nextInt);
+					datai = datai.substring(0, datai.length() - 1);
+					result += "{\r\n" + "				type: 'line',\r\n" + "				label: 'Total',\r\n"
+							+ "				borderColor: '" + colorCode + "',\r\n" + "				borderWidth: 2,\r\n"
+							+ "				fill: false,\r\n" + "				data: [" + datai + "]\r\n"
+							+ "			},";
+				}
+				for (int i = 1; i < lstStack.size() / 12; i++) {
+					String datai = "";
+					int iFrom = (i * 12);
+					int iTo = (i + 1) * 12;
+					for (int j = iFrom; j < iTo; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					int nextInt = random.nextInt(0xffffff + 1);
+					String colorCode = String.format("#%06x", nextInt);
+					datai = datai.substring(0, datai.length() - 1);
+					result += "{\r\n" + "				type: 'bar',\r\n" + "				label: '"
+							+ lstStack.get(iFrom).getKind() + "',\r\n" + "				backgroundColor: '" + colorCode
+							+ "',\r\n" + "				borderWidth: 2,\r\n" + "				data: [" + datai
+							+ "]\r\n" + "			},";
+				}
+				result = result.substring(0, result.length() - 1);
+				// System.out.println(result);
+				return result;
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+		} catch (Exception e) {
+
+		}
+		return "";
+	}
+	//biểu đồ theo loại tài sản, cả 2 location IJP và LBP
+	public String getListKindChart1() {
+		try {
+			Random random = new Random();
+			String sql = strGetListKind1();
+			String result = "";
+			conn = ConnectionCon.getcon();
+			ArrayList<KindChart> lstStack = new ArrayList<KindChart>();
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("quantity");
+					String month = rs.getString("month");
+					String kind = rs.getString("kind_nm");
+					String fact = rs.getString("fact_nm");
+					KindChart item = new KindChart(fact, month, kind, quantity);
+					lstStack.add(item);
+				}
+				conn.close();
+				for (int i = 0; i < lstStack.size() / 24; i++) {
+					String datai = "";
+					int iFrom = (i * 24);
+					int iBetween = iFrom + 12;
+					int iTo = (i + 1) * 24;
+					for (int j = iFrom; j < iBetween; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					int nextInt = random.nextInt(0xffffff + 1);
+					String colorCode = String.format("#%06x", nextInt);
+					datai = datai.substring(0, datai.length() - 1);
+					result += "{\r\n" + "				type: 'bar',\r\n" + "stack:'LBP',				label: 'LBP "
+							+ lstStack.get(iFrom).getKind() + "',\r\n" + "				backgroundColor: '" + colorCode
+							+ "',\r\n" + "				borderWidth: 2,\r\n" + "				data: [" + datai
+							+ "]\r\n" + "			},";
+					
+					datai = "";
+					nextInt = random.nextInt(0xffffff + 1);
+					colorCode = String.format("#%06x", nextInt);
+					for (int j = iBetween; j < iTo; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					datai = datai.substring(0, datai.length() - 1);
+					result += "{\r\n" + "				type: 'bar',\r\n" + "stack:'IJP',				label: 'IJP "
+							+ lstStack.get(iFrom).getKind() + "',\r\n" + "				backgroundColor: '" + colorCode
+							+ "',\r\n" + "				borderWidth: 2,\r\n" + "				data: [" + datai
+							+ "]\r\n" + "			},";
+				}
+				result = result.substring(0, result.length() - 1);
+				return result;
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+		} catch (Exception e) {
+
+		}
+		return "";
+	}
+	//sinh ra script tạo biểu đồ
+	public String getListStacked(String fact) {
+		try {
+			Random random = new Random();
+			String sql = getStrListStacked(fact);
+			String result = "";
+			conn = ConnectionCon.getcon();
+			ArrayList<StackedChart> lstStack = new ArrayList<StackedChart>();
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("SoLuong");
+					String month = rs.getString("month");
+					String dept = rs.getString("type");
+					StackedChart itemStack = new StackedChart(month, fact, dept, quantity);
+					lstStack.add(itemStack);
+				}
+				conn.close();
+				ArrayList<String> lstKind = new ArrayList<String>();
+				lstKind.add("Dies");
+				lstKind.add("Machinery");
+				lstKind.add("Others");
+				lstKind.add("Tools");
+				lstKind.add("Total");
+				for (int i = 0; i < lstKind.size(); i++) {
+					String datai = "";
+					int iFrom = (i * 12);
+					int iTo = (i + 1) * 12;
+					for (int j = iFrom; j < iTo; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					int nextInt = random.nextInt(0xffffff + 1);
+					String colorCode = String.format("#%06x", nextInt);
+					datai = datai.substring(0, datai.length() - 1);
+					if(i < (lstKind.size() - 1)) {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + colorCode + "',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+					}
+					else {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "', type: 'scatter',\r\n"
+								+ "					backgroundColor : '" + "#000066" + "',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+					}
+				}
+				result = result.substring(0, result.length() - 1);
+				return result;
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+		} catch (Exception e) {
+
+		}
+		return "";
+	}
+	//sinh ra script tạo biểu đồ
+//		public String getListStacked1() {
+//			try {
+//				//Random random = new Random();
+//				String sql = getStrListStacked1();
+//				String result = "";
+//				conn = ConnectionCon.getcon();
+//				ArrayList<StackedChart> lstStack = new ArrayList<StackedChart>();
+//				try {
+//					pst = conn.prepareStatement(sql);
+//					rs = pst.executeQuery();
+//					while (rs.next()) {
+//						int quantity = rs.getInt("SoLuong");
+//						String month = rs.getString("month");
+//						String dept = rs.getString("type");
+//						String fact = rs.getString("fact");
+//						StackedChart itemStack = new StackedChart(month, fact, dept, quantity);
+//						lstStack.add(itemStack);
+//					}
+//					conn.close();
+//					ArrayList<String> lstKind = new ArrayList<String>();
+//					lstKind.add("Dies");
+//					lstKind.add("Machinery");
+//					lstKind.add("Others");
+//					lstKind.add("Tools");
+//					lstKind.add("Total");
+//					for (int i = 0; i < lstKind.size(); i++) {
+//						String datai = "";
+//						String dataj = "";
+//						int iFrom = (i * 12);
+//						int iTo = (i + 1) * 12;
+//						for (int j = iFrom; j < iTo; j++) {
+//							datai += lstStack.get(j).getQuantity() + ",";
+//						}
+//						for (int j = iFrom + 60; j < iTo + 60; j++) {
+//							dataj += lstStack.get(j).getQuantity() + ",";
+//						}
+//						//int nextInt = random.nextInt(0xffffff + 1);
+//						//String colorCode = String.format("#%06x", nextInt);
+//						datai = datai.substring(0, datai.length() - 1);
+//						dataj = dataj.substring(0, dataj.length() - 1);
+//						if(i == 0) {
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#ffffb3" + "', stack: 'IJP',\r\n"
+//									+ "					data : [ " + datai + " ]\r\n" + "				},";
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#ffffb3" + "', stack: 'LBP',\r\n"
+//									+ "					data : [ " + dataj + " ]\r\n" + "				},";
+//						}
+//						else if(i == 1) {
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#b3ffff" + "', stack: 'IJP',\r\n"
+//									+ "					data : [ " + datai + " ]\r\n" + "				},";
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#b3ffff" + "', stack: 'LBP',\r\n"
+//									+ "					data : [ " + dataj + " ]\r\n" + "				},";
+//						}
+//						else if(i == 2) {
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#b3ffb3" + "', stack: 'IJP',\r\n"
+//									+ "					data : [ " + datai + " ]\r\n" + "				},";
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#b3ffb3" + "', stack: 'LBP',\r\n"
+//									+ "					data : [ " + dataj + " ]\r\n" + "				},";
+//						}
+//						else if(i == 3) {
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#ffb3b3" + "', stack: 'IJP',\r\n"
+//									+ "					data : [ " + datai + " ]\r\n" + "				},";
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+//									+ "					backgroundColor : '" + "#ffb3b3" + "', stack: 'LBP',\r\n"
+//									+ "					data : [ " + dataj + " ]\r\n" + "				},";
+//						}
+//						else {
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "', type: 'scatter',\r\n"
+//									+ "					backgroundColor : '" + "#000066" + "', stack: 'IJP',pointRadius: 0,\r\n"
+//									+ "					data : [ " + datai + " ]\r\n" + "				},";
+//							result += "{\r\n" + "					label : '" + lstKind.get(i) + "', type: 'scatter',\r\n"
+//									+ "					backgroundColor : '" + "#000066" + "', stacl: 'LBP',pointRadius: 0,\r\n"
+//									+ "					data : [ " + dataj + " ]\r\n" + "				},";
+//						}
+//					}
+//					result = result.substring(0, result.length() - 1);
+//					return result;
+//				} catch (Exception e1) {
+//					e1.printStackTrace();
+//				}
+//			} catch (Exception e) {
+//
+//			}
+//			return "";
+//		}
+	public String getListStacked1() {
+		try {
+			//Random random = new Random();
+			String sql = getStrListStacked1();
+			String result = "";
+			conn = ConnectionCon.getcon();
+			ArrayList<StackedChart> lstStack = new ArrayList<StackedChart>();
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("SoLuong");
+					String month = rs.getString("month");
+					String dept = rs.getString("type");
+					String fact = rs.getString("fact");
+					StackedChart itemStack = new StackedChart(month, fact, dept, quantity);
+					lstStack.add(itemStack);
+				}
+				conn.close();
+				ArrayList<String> lstKind = new ArrayList<String>();
+				lstKind.add("Dies");
+				lstKind.add("Machinery");
+				lstKind.add("Others");
+				lstKind.add("Tools");
+				lstKind.add("Total");
+				for (int i = 0; i < lstKind.size(); i++) {
+					String datai = "";
+					String dataj = "";
+					int iFrom = (i * 14);
+					int iTo = (i + 1) * 14;
+					for (int j = iFrom; j < iTo; j++) {
+						datai += lstStack.get(j).getQuantity() + ",";
+					}
+					for (int j = iFrom + 70; j < iTo + 70; j++) {
+						dataj += lstStack.get(j).getQuantity() + ",";
+					}
+					//int nextInt = random.nextInt(0xffffff + 1);
+					//String colorCode = String.format("#%06x", nextInt);
+					datai = datai.substring(0, datai.length() - 1);
+					dataj = dataj.substring(0, dataj.length() - 1);
+					if(i == 0) {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#ffffb3" + "', stack: 'IJP',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#ffffb3" + "', stack: 'LBP',\r\n"
+								+ "					data : [ " + dataj + " ]\r\n" + "				},";
+					}
+					else if(i == 1) {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#b3ffff" + "', stack: 'IJP',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#b3ffff" + "', stack: 'LBP',\r\n"
+								+ "					data : [ " + dataj + " ]\r\n" + "				},";
+					}
+					else if(i == 2) {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#b3ffb3" + "', stack: 'IJP',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#b3ffb3" + "', stack: 'LBP',\r\n"
+								+ "					data : [ " + dataj + " ]\r\n" + "				},";
+					}
+					else if(i == 3) {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#ffb3b3" + "', stack: 'IJP',\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "',\r\n"
+								+ "					backgroundColor : '" + "#ffb3b3" + "', stack: 'LBP',\r\n"
+								+ "					data : [ " + dataj + " ]\r\n" + "				},";
+					}
+					else {
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "', type: 'scatter',\r\n"
+								+ "					backgroundColor : '" + "#000066" + "', stack: 'IJP',pointRadius: 0,\r\n"
+								+ "					data : [ " + datai + " ]\r\n" + "				},";
+						result += "{\r\n" + "					label : '" + lstKind.get(i) + "', type: 'scatter',\r\n"
+								+ "					backgroundColor : '" + "#000066" + "', stacl: 'LBP',pointRadius: 0,\r\n"
+								+ "					data : [ " + dataj + " ]\r\n" + "				},";
+					}
+				}
+				result = result.substring(0, result.length() - 1);
+				return result;
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+		} catch (Exception e) {
+
+		}
+		return "";
+	}
+	//dữ liệu biểu đồ theo loại tài sản theo nhà máy, có 3 loại và other
+	public String getStrListStacked(String fact) {
+		String result = "";
+		LocalDate currentDate = LocalDate.now();
+		int currentMonth = currentDate.getMonthValue();
+		String location_nm = "'Thang Long','Tien Son'";
+		if(fact.equals("IJP")) {
+			location_nm = "'Thang Long','Tien Son'";
+		}else if(fact.equals("LBP")) {
+			location_nm = "'Que Vo'";
+		}
+		try {
+			String sql = "";
+			ArrayList<MonthChart> lstMonth = getMonthly();
+			for (int i = 0; i < currentMonth; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select 'Dies' as type, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Tools' as type, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Machinery' as type, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Others' as type, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" +
+						"select 'Total' as type, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union ";
+			}
+			for(int i = currentMonth; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select 'Dies' as type, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Tools' as type, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Machinery' as type, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Others' as type, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" +
+						"select 'Total' as type, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union ";
+			}
+			result = sql.substring(0, sql.length() - 6) + " order by type asc, month asc";
+			//System.out.println(result);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+	//dữ liệu biểu đồ theo loại tài sản theo nhà máy, có 3 loại và other
+//		public String getStrListStacked1() {
+//			String result = "";
+//			LocalDate currentDate = LocalDate.now();
+//			int currentMonth = currentDate.getMonthValue();
+//			String location_nm = "'Thang Long','Tien Son'";
+//			try {
+//				String sql = "";
+//				ArrayList<MonthChart> lstMonth = getMonthly();
+//				for (int i = 0; i < currentMonth; i++) {
+//					String nameMonth = lstMonth.get(i).getName();
+//					int iMonth = (Integer.parseInt(nameMonth) + 1);
+//					sql += "select 'Dies' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Tools' as type,'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Machinery' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Others' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" +
+//							"select 'Total' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union ";
+//				}
+//				for(int i = currentMonth; i < 12; i++) {
+//					String nameMonth = lstMonth.get(i).getName();
+//					sql += "select 'Dies' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Tools' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Machinery' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Others' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" +
+//							"select 'Total' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union ";
+//				}
+//				
+//				location_nm = "'Que Vo'";
+//				for (int i = 0; i < currentMonth; i++) {
+//					String nameMonth = lstMonth.get(i).getName();
+//					int iMonth = (Integer.parseInt(nameMonth) + 1);
+//					sql += "select 'Dies' as type, 'LBP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Tools' as type, 'LBP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Machinery' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" + 
+//							"select 'Others' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union\r\n" +
+//							"select 'Total' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+//							"from tbl_total\r\n" + 
+//							"where sub_asset_no = '1' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+//							"union ";
+//				}
+//				for(int i = currentMonth; i < 12; i++) {
+//					String nameMonth = lstMonth.get(i).getName();
+//					sql += "select 'Dies' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Tools' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Machinery' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" + 
+//							"select 'Others' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union\r\n" +
+//							"select 'Total' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+//							"union ";
+//				}
+//				result = sql.substring(0, sql.length() - 6) + " order by fact asc, type asc, month asc";
+//				//System.out.println(result);
+//			} catch (Exception e) {
+//				e.printStackTrace();
+//			}
+//			return result;
+//		}
+	public String getStrListStacked1() {
+		String result = "";
+		LocalDate currentDate = LocalDate.now();
+		int lastYear = currentDate.getYear();
+		int beforeLastYear = lastYear - 1;
+		int currentMonth = currentDate.getMonthValue();
+		String location_nm = "'Thang Long','Tien Son'";
+		try {
+			String sql = "";
+			ArrayList<MonthChart> lstMonth = getMonthly();
+			//data before last year
+			sql += "select 'Dies' as type, 'IJP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Tools' as type,'IJP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Machinery' as type, 'IJP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Others' as type, 'IJP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" +
+					"select 'Total' as type, 'IJP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union ";
+			//data last year
+			sql += "select 'Dies' as type, 'IJP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Tools' as type,'IJP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Machinery' as type, 'IJP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Others' as type, 'IJP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" +
+					"select 'Total' as type, 'IJP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union ";
+			for (int i = 0; i < currentMonth - 1; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select 'Dies' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Tools' as type,'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Machinery' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Others' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" +
+						"select 'Total' as type, 'IJP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union ";
+			}
+			for(int i = currentMonth - 1; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select 'Dies' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Tools' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Machinery' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Others' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" +
+						"select 'Total' as type, 'IJP' as fact, '" + nameMonth + "' as month, '0' as SoLuong " +
+						"union ";
+			}
+			
+			location_nm = "'Que Vo'";
+			//data before last year
+			sql += "select 'Dies' as type, 'LBP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Tools' as type,'LBP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Machinery' as type, 'LBP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Others' as type, 'LBP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" +
+					"select 'Total' as type, 'LBP' as fact, '" + (beforeLastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + beforeLastYear + "00') as tblTemp\r\n" + 
+					"union ";
+			//data last year
+			sql += "select 'Dies' as type, 'LBP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Tools' as type,'LBP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Machinery' as type, 'LBP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" + 
+					"select 'Others' as type, 'LBP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union\r\n" +
+					"select 'Total' as type, 'LBP' as fact, '" + (lastYear - 1) + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+					"from tbl_total\r\n" + 
+					"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + lastYear + "00') as tblTemp\r\n" + 
+					"union ";
+			for (int i = 0; i < currentMonth - 1; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select 'Dies' as type, 'LBP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 8 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Tools' as type, 'LBP' as fact, '" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 6 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Machinery' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd = 4 and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" + 
+						"select 'Others' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  kind_cd not in (8,6,4) and admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union\r\n" +
+						"select 'Total' as type,  'LBP' as fact,'" + nameMonth + "' as month, count(*) as SoLuong from (select distinct asset_no\r\n" + 
+						"from tbl_total\r\n" + 
+						"where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in (" + location_nm + ") and acq_date < '" + iMonth + "00') as tblTemp\r\n" + 
+						"union ";
+			}
+			for(int i = currentMonth - 1; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select 'Dies' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Tools' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Machinery' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" + 
+						"select 'Others' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+						"union\r\n" +
+						"select 'Total' as type,  'LBP' as fact,'" + nameMonth + "' as month, '0' as SoLuong " +
+						"union ";
+			}
+			result = sql.substring(0, sql.length() - 6) + " order by fact asc, type asc, month asc";
+			//System.out.println(result);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+	//lấy danh sách phòng ban theo nhà máy
+	public ArrayList<String> getDepartments(String fact) {
+		LocalDate currentDate = LocalDate.now();
+		int yearNow = currentDate.getYear();
+		int yearPrev = yearNow - 1;
+		ArrayList<String> listDepts = new ArrayList<>();
+		// open connection
+		conn = ConnectionCon.getcon();
+		String sql = "select distinct cost_center_name from tbl_total where admi_acct_nm = '" + fact
+				+ "' and (acq_date like '" + yearPrev + "%' or acq_date like '" + yearNow
+				+ "%') order by cost_center_name asc";
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String dept = rs.getString("cost_center_name");
+				listDepts.add(dept);
+			}
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return listDepts;
+	}
+	//lấy năm tháng của năm hiện tại
+	public ArrayList<MonthChart> getMonthly() {
+		LocalDate currentDate = LocalDate.now();
+		int yearNow = currentDate.getYear();
+		ArrayList<MonthChart> lstMonth = new ArrayList<MonthChart>();
+		try {
+			lstMonth.add(new MonthChart("Jan", yearNow + "01"));
+			lstMonth.add(new MonthChart("Feb", yearNow + "02"));
+			lstMonth.add(new MonthChart("Mar", yearNow + "03"));
+			lstMonth.add(new MonthChart("Apr", yearNow + "04"));
+			lstMonth.add(new MonthChart("May", yearNow + "05"));
+			lstMonth.add(new MonthChart("Jun", yearNow + "06"));
+			lstMonth.add(new MonthChart("Jul", yearNow + "07"));
+			lstMonth.add(new MonthChart("Aug", yearNow + "08"));
+			lstMonth.add(new MonthChart("Sep", yearNow + "09"));
+			lstMonth.add(new MonthChart("Oct", yearNow + "10"));
+			lstMonth.add(new MonthChart("Nov", yearNow + "11"));
+			lstMonth.add(new MonthChart("Dec", yearNow + "12"));
+			return lstMonth;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	//lấy tên các tháng hiển thị ở thanh ngang của biểu đồ
+	public String getMonthTitle() {
+		String result = "";
+		//result += "'" + yearPrev + "',";
+		result += "'Jan',";
+		result += "'Feb',";
+		result += "'Mar',";
+		result += "'Apr',";
+		result += "'May',";
+		result += "'Jun',";
+		result += "'Jul',";
+		result += "'Aug',";
+		result += "'Sep',";
+		result += "'Oct',";
+		result += "'Nov',";
+		result += "'Dec'";
+		return result;
+	}
+	//dữ liệu tách thành các string để đưa vào script, gộp cả IJP, LBP, không có total
+	public List<String> getDataStackedGroup() {
+		ArrayList<StackedGroupChart> lst = getListStackedGroup();
+		String s1 = "", s2 = "", s3 = "", s4 = "";
+		for (int i = 0; i < 12; i++) {
+			s1 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 12; i < 24; i++) {
+			s2 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 24; i < 36; i++) {
+			s3 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 36; i < 48; i++) {
+			s4 += lst.get(i).getQuantity() + ",";
+		}
+		s1 = s1.substring(0, s1.length() - 1);
+		s2 = s2.substring(0, s2.length() - 1);
+		s3 = s3.substring(0, s3.length() - 1);
+		s4 = s4.substring(0, s4.length() - 1);
+		ArrayList<String> lstResult = new ArrayList<String>();
+		lstResult.add(s1);
+		lstResult.add(s2);
+		lstResult.add(s3);
+		lstResult.add(s4);
+		return lstResult;
+	}
+	//dữ liệu tách thành các string để đưa vào script, từng nhà máy, có total
+	public List<String> getDataStackedGroup2(String fact) {
+		ArrayList<StackedGroupChart> lst = getListStackedGroup2(fact);
+		String s1 = "", s2 = "", s3 = "";
+		for (int i = 0; i < 12; i++) {
+			s1 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 12; i < 24; i++) {
+			s2 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 24; i < 36; i++) {
+			s3 += lst.get(i).getQuantity() + ",";
+		}
+		s1 = s1.substring(0, s1.length() - 1);
+		s2 = s2.substring(0, s2.length() - 1);
+		s3 = s3.substring(0, s3.length() - 1);
+		ArrayList<String> lstResult = new ArrayList<String>();
+		lstResult.add(s1);
+		lstResult.add(s2);
+		lstResult.add(s3);
+		return lstResult;
+	}
+	//dữ liệu tách thành các string để đưa vào script, gộp cả IJP, LBP, có total
+//	public List<String> getDataStackedGroup3(String fact) {
+//		ArrayList<StackedGroupChart> lst = getListStackedGroup3(fact);
+//		String s1 = "", s2 = "", s3 = "", s4 = "", s5 = "", s6 = "";
+//		for (int i = 0; i < 12; i++) {
+//			s1 += lst.get(i).getQuantity() + ",";
+//		}
+//		for (int i = 12; i < 24; i++) {
+//			s2 += lst.get(i).getQuantity() + ",";
+//		}
+//		for (int i = 24; i < 36; i++) {
+//			s3 += lst.get(i).getQuantity() + ",";
+//		}
+//		for (int i = 36; i < 48; i++) {
+//			s4 += lst.get(i).getQuantity() + ",";
+//		}
+//		for (int i = 48; i < 60; i++) {
+//			s5 += lst.get(i).getQuantity() + ",";
+//		}
+//		for (int i = 60; i < 72; i++) {
+//			s6 += lst.get(i).getQuantity() + ",";
+//		}
+//		s1 = s1.substring(0, s1.length() - 1);
+//		s2 = s2.substring(0, s2.length() - 1);
+//		s3 = s3.substring(0, s3.length() - 1);
+//		s4 = s4.substring(0, s4.length() - 1);
+//		s5 = s5.substring(0, s5.length() - 1);
+//		s6 = s6.substring(0, s6.length() - 1);
+//		ArrayList<String> lstResult = new ArrayList<String>();
+//		lstResult.add(s1);
+//		lstResult.add(s2);
+//		lstResult.add(s3);
+//		lstResult.add(s4);
+//		lstResult.add(s5);
+//		lstResult.add(s6);
+//		return lstResult;
+//	}
+	public List<String> getDataStackedGroup3(String fact) {
+		ArrayList<StackedGroupChart> lst = getListStackedGroup3(fact);
+		String s1 = "", s2 = "", s3 = "", s4 = "", s5 = "", s6 = "";
+		for (int i = 0; i < 14; i++) {
+			s1 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 14; i < 28; i++) {
+			s2 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 28; i < 42; i++) {
+			s3 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 42; i < 56; i++) {
+			s4 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 56; i < 70; i++) {
+			s5 += lst.get(i).getQuantity() + ",";
+		}
+		for (int i = 70; i < 84; i++) {
+			s6 += lst.get(i).getQuantity() + ",";
+		}
+		s1 = s1.substring(0, s1.length() - 1);
+		s2 = s2.substring(0, s2.length() - 1);
+		s3 = s3.substring(0, s3.length() - 1);
+		s4 = s4.substring(0, s4.length() - 1);
+		s5 = s5.substring(0, s5.length() - 1);
+		s6 = s6.substring(0, s6.length() - 1);
+		ArrayList<String> lstResult = new ArrayList<String>();
+		lstResult.add(s1);
+		lstResult.add(s2);
+		lstResult.add(s3);
+		lstResult.add(s4);
+		lstResult.add(s5);
+		lstResult.add(s6);
+		return lstResult;
+	}
+	//lấy số liệu để hiển thị cho 4 card trang chủ
+	public List<String> getListCard() {
+		try {
+			LocalDate currentDate = LocalDate.now();
+			int yearNow = currentDate.getYear();
+			int monthNow = currentDate.getMonthValue() + 1;
+			List<String> lstI = new ArrayList<String>();
+			int totalAsset = executeScalar("select count(*) from (select distinct asset_no\r\n" + "from tbl_total where sub_asset_no = '1' and request_status != '0'\r\n"
+					+ ") as tbl_temp");
+			lstI.add(numberWithCommas(totalAsset));
+			int lbpInside = executeScalar("select count(*) from (select distinct asset_no from tbl_total\r\n"
+					+ "where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in ('Que Vo') and acq_date < '" + yearNow + "" + monthNow + "00" + "' and cost_center not in (\r\n"
+					+ "select distinct code\r\n" + "from tbl_outside_code where location = 'LBP')) as tbl_templ");
+			lstI.add(numberWithCommas(lbpInside));
+			int ijpInside = executeScalar("select count(*) from (select distinct asset_no from tbl_total\r\n"
+					+ "where sub_asset_no = '1' and request_status != '0' and  admi_acct_nm in ('Tien Son', 'Thang Long') and acq_date  < '" + yearNow + "" + monthNow + "00" + "' and cost_center not in (\r\n"
+					+ "select distinct code\r\n" + "from tbl_outside_code where location = 'IJP')) as tbl_templ");
+			lstI.add(numberWithCommas(ijpInside));
+			int outside = executeScalar("select count(*) from (select distinct asset_no from tbl_total\r\n"
+					+ "where sub_asset_no = '1' and request_status != '0' and  cost_center in (\r\n" + "select distinct code\r\n"
+					+ "from tbl_outside_code) and acq_date  < '" + yearNow + "" + monthNow + "00" + "') as tbl_templ");
+			lstI.add(numberWithCommas(outside));
+			return lstI;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	public String numberWithCommas(int x) {
+		DecimalFormat formatter = new DecimalFormat("#,###");
+	    return  formatter.format(x);
+	}
+	//thực hiện câu lệnh và lấy ra giá trị hàng 1 cột 1
+	public int executeScalar(String sql) {
+		int result = 0;
+		conn = ConnectionCon.getcon();
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			if (rs.next()) {
+				result = rs.getInt(1);
+			}
+			conn.close();
+			return result;
+		} catch (Exception e) {
+			return 0;
+		}
+	}
+	//lấy các mã tài sản outside theo nhà máy, mỗi nhà máy có các loại outside khác nhau
+	public String getOutsideCode(String fact) {
+		conn = ConnectionCon.getcon();
+		String sql = "select code from tbl_outside_code where location='" + fact + "'";
+		String result = "";
+		try {
+			pst = conn.prepareStatement(sql);
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				String code = rs.getString("code");
+				result += ("'" + code + "',");
+			}
+			result = result.substring(0, result.length() - 1);
+			conn.close();
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+		return result;
+	}
+	//dữ liệu biểu đồ thống kê inside/outside cả 2 nhà máy LBP và IJP, không bao gồm total
+	public ArrayList<StackedGroupChart> getListStackedGroup() {
+		ArrayList<StackedGroupChart> listStackGroup = new ArrayList<>();
+		LocalDate currentdate = LocalDate.now();
+		int currentMonth = currentdate.getMonthValue();
+		String outsidecodeIJP = getOutsideCode("IJP");
+		String outsidecodeLBP = getOutsideCode("LBP");
+		try {
+			ArrayList<MonthChart> lstMonth = getMonthly();
+			String sql = "";
+			for (int i = 0; i < currentMonth; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select 'IJP' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in ('Tien Son','Thang Long') and cost_center not in ("
+						+ outsidecodeIJP + ")) as tblIJP\r\n" + "union \r\n" + "select 'IJP' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in ('Tien Son','Thang Long') and cost_center in ("
+						+ outsidecodeIJP + ")) as tblIJP\r\n" + "union \r\n" + "select 'LBP' as fact, '" + nameMonth
+						+ "' as month, 'Inside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in ('Que Vo') and cost_center not in (" + outsidecodeLBP
+						+ ")) as tblLBP\r\n" + "union \r\n" + "select 'LBP' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in ('Que Vo') and cost_center in (" + outsidecodeLBP
+						+ ")) as tblLBP union ";
+			}
+			for (int i = currentMonth; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				//int iMonth = (Integer.parseInt(nameMonth) + 1);
+				//String displayMonth = lstMonth.get(i).getDisplay();
+				sql += "select 'IJP' as fact, '" + nameMonth 
+						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+						+ "select 'IJP' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, 0 as quantity union \r\n" 
+						+ "select 'LBP' as fact, '" + nameMonth
+						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+						+ "select 'LBP' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, 0 as quantity union ";
+			}
+			String result = sql.substring(0, sql.length() - 6) + " order by fact desc, type asc, month asc";
+			conn = ConnectionCon.getcon();
+			try {
+				pst = conn.prepareStatement(result);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("quantity");
+					String month = rs.getString("month");
+					String fact = rs.getString("fact");
+					String type = rs.getString("type");
+					StackedGroupChart itemStackGroup = new StackedGroupChart(month, fact, type, quantity);
+					listStackGroup.add(itemStackGroup);
+				}
+				conn.close();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+
+		} catch (Exception e2) {
+			e2.printStackTrace();
+		}
+		return listStackGroup;
+	}
+	//dữ liệu biểu đồ thống kê inside/outside/total theo từng nhà máy
+	public ArrayList<StackedGroupChart> getListStackedGroup2(String fact) {
+		ArrayList<StackedGroupChart> listStackGroup = new ArrayList<>();
+		LocalDate currentdate = LocalDate.now();
+		int currentMonth = currentdate.getMonthValue();
+		String outsidecode = getOutsideCode(fact);
+		String location_nm = "'Thang Long','Tien Son'";
+		if(fact.equals("IJP")) {
+			location_nm = "'Thang Long','Tien Son'";
+		}else {
+			location_nm = "'Que Vo'";
+		}
+		try {
+			ArrayList<MonthChart> lstMonth = getMonthly();
+			String sql = "";
+			for (int i = 0; i < currentMonth; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Total' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			}
+			for (int i = currentMonth; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select '" + fact + "' as fact, '" + nameMonth 
+						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, 0 as quantity union \r\n"
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Total' as type, 0 as quantity union ";
+			}
+			String result = sql.substring(0, sql.length() - 6) + " order by fact desc, type asc, month asc";
+			conn = ConnectionCon.getcon();
+			try {
+				pst = conn.prepareStatement(result);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("quantity");
+					String month = rs.getString("month");
+					String type = rs.getString("type");
+					StackedGroupChart itemStackGroup = new StackedGroupChart(month, fact, type, quantity);
+					listStackGroup.add(itemStackGroup);
+				}
+				conn.close();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+
+		} catch (Exception e2) {
+			e2.printStackTrace();
+		}
+		return listStackGroup;
+	}
+	//dữ liệu biểu đồ thống kê số lượng inside/outside/total gồm cả 2 nhà máy IJP và LBP
+//	public ArrayList<StackedGroupChart> getListStackedGroup3(String factCode) {
+//		ArrayList<StackedGroupChart> listStackGroup = new ArrayList<>();
+//		LocalDate currentdate = LocalDate.now();
+//		int currentMonth = currentdate.getMonthValue();
+//		String location_nm = "";
+//		String outsidecode = "";
+//		try {
+//			ArrayList<MonthChart> lstMonth = getMonthly();
+//			String sql = "";
+//			String fact = "IJP";
+//			outsidecode = getOutsideCode(fact);
+//			location_nm = "'Thang Long','Tien Son'";
+//			for (int i = 0; i < currentMonth; i++) {
+//				String nameMonth = lstMonth.get(i).getName();
+//				int iMonth = (Integer.parseInt(nameMonth) + 1);
+//				sql += "select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+//						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+//						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+//						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+//						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Total' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+//			}
+//			for (int i = currentMonth; i < 12; i++) {
+//				String nameMonth = lstMonth.get(i).getName();
+//				sql += "select '" + fact + "' as fact, '" + nameMonth 
+//						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+//						+ "select '" + fact + "' as fact, '" + nameMonth
+//						+ "' as month, 'Outside' as type, 0 as quantity union \r\n"
+//						+ "select '" + fact + "' as fact, '" + nameMonth
+//						+ "' as month, 'Total' as type, 0 as quantity union ";
+//			}
+//			fact = "LBP";
+//			outsidecode = getOutsideCode(fact);
+//			location_nm = "'Que Vo'";
+//			for (int i = 0; i < currentMonth; i++) {
+//				String nameMonth = lstMonth.get(i).getName();
+//				int iMonth = (Integer.parseInt(nameMonth) + 1);
+//				sql += "select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+//						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+//						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+//						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+//						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Total' as type, count(*) as quantity\r\n"
+//						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and  acq_date < '"
+//						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+//			}
+//			for (int i = currentMonth; i < 12; i++) {
+//				String nameMonth = lstMonth.get(i).getName();
+//				sql += "select '" + fact + "' as fact, '" + nameMonth 
+//						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+//						+ "select '" + fact + "' as fact, '" + nameMonth
+//						+ "' as month, 'Outside' as type, 0 as quantity union \r\n"
+//						+ "select '" + fact + "' as fact, '" + nameMonth
+//						+ "' as month, 'Total' as type, 0 as quantity union ";
+//			}
+//			String result = sql.substring(0, sql.length() - 6) + " order by fact asc, type asc, month asc";
+//			//System.out.println(result);
+//			conn = ConnectionCon.getcon();
+//			try {
+//				pst = conn.prepareStatement(result);
+//				rs = pst.executeQuery();
+//				while (rs.next()) {
+//					int quantity = rs.getInt("quantity");
+//					String month = rs.getString("month");
+//					String type = rs.getString("type");
+//					StackedGroupChart itemStackGroup = new StackedGroupChart(month, fact, type, quantity);
+//					listStackGroup.add(itemStackGroup);
+//				}
+//				conn.close();
+//			} catch (Exception e1) {
+//				e1.printStackTrace();
+//			}
+//
+//		} catch (Exception e2) {
+//			e2.printStackTrace();
+//		}
+//		return listStackGroup;
+//	}
+	public ArrayList<StackedGroupChart> getListStackedGroup3(String factCode) {
+		ArrayList<StackedGroupChart> listStackGroup = new ArrayList<>();
+		LocalDate currentdate = LocalDate.now();
+		int strLastYear = currentdate.getYear();
+		int strBeforeLastYear = currentdate.getYear() - 1;
+		int currentMonth = currentdate.getMonthValue();
+		String location_nm = "";
+		String outsidecode = "";
+		try {
+			ArrayList<MonthChart> lstMonth = getMonthly();
+			String sql = "";
+			String fact = "IJP";
+			outsidecode = getOutsideCode(fact);
+			location_nm = "'Thang Long','Tien Son'";
+			sql += "select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Total' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			
+			sql += "select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Total' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			
+			for (int i = 0; i < currentMonth - 1; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Total' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+				
+			}
+			for (int i = currentMonth - 1; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select '" + fact + "' as fact, '" + nameMonth 
+						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, 0 as quantity union \r\n"
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Total' as type, 0 as quantity union ";
+			}
+			fact = "LBP";
+			outsidecode = getOutsideCode(fact);
+			location_nm = "'Que Vo'";
+			sql += "select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strBeforeLastYear - 1) + "' as month, 'Total' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strBeforeLastYear + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			
+			sql += "select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+					+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+					"select '" + fact + "' as fact, '" + (strLastYear - 1) + "' as month, 'Total' as type, count(*) as quantity\r\n"
+					+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+					+ strLastYear + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			
+			for (int i = 0; i < currentMonth - 1; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				int iMonth = (Integer.parseInt(nameMonth) + 1);
+				sql += "select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Inside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center not in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Outside' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ") and cost_center in ("
+						+ outsidecode + ")) as tbl" + fact + "\r\n" + "union \r\n" + 
+						"select '" + fact + "' as fact, '" + nameMonth + "' as month, 'Total' as type, count(*) as quantity\r\n"
+						+ "from (select distinct asset_no\r\n" + "from tbl_total\r\n" + "where sub_asset_no = '1' and request_status != '0' and  acq_date < '"
+						+ iMonth + "00' and admi_acct_nm in (" + location_nm + ")) as tbl" + fact + "\r\n" + "union ";
+			}
+			for (int i = currentMonth - 1; i < 12; i++) {
+				String nameMonth = lstMonth.get(i).getName();
+				sql += "select '" + fact + "' as fact, '" + nameMonth 
+						+ "' as month, 'Inside' as type, 0 as quantity union \r\n" 
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Outside' as type, 0 as quantity union \r\n"
+						+ "select '" + fact + "' as fact, '" + nameMonth
+						+ "' as month, 'Total' as type, 0 as quantity union ";
+			}
+			String result = sql.substring(0, sql.length() - 6) + " order by fact asc, type asc, month asc";
+			//System.out.println(result);
+			conn = ConnectionCon.getcon();
+			try {
+				pst = conn.prepareStatement(result);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					int quantity = rs.getInt("quantity");
+					String month = rs.getString("month");
+					String type = rs.getString("type");
+					StackedGroupChart itemStackGroup = new StackedGroupChart(month, fact, type, quantity);
+					listStackGroup.add(itemStackGroup);
+				}
+				conn.close();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+
+		} catch (Exception e2) {
+			e2.printStackTrace();
+		}
+		return listStackGroup;
+	}
+	public String getDemoTreatment(String fact) {
+		try {
+			//Random random = new Random();
+			String sql = "SELECT id, fact, type, data, color\r\n" + 
+					"	FROM public.tbl_demo_treatment\r\n" + 
+					"	where fact = '" + fact + "'\r\n" + 
+					"	order by id asc";
+			String result = "";
+			conn = ConnectionCon.getcon();
+			ArrayList<TreatmentBean> lstStack = new ArrayList<TreatmentBean>();
+			try {
+				pst = conn.prepareStatement(sql);
+				rs = pst.executeQuery();
+				while (rs.next()) {
+					String data = rs.getString("data");
+					String type = rs.getString("type");
+					String color = rs.getString("color");
+					TreatmentBean item = new TreatmentBean(fact, type, data, color);
+					lstStack.add(item);
+				}
+				conn.close();
+				int last = lstStack.size() - 1;
+				result += "{\r\n" + "					label : '" + lstStack.get(last).getType() + "', type: 'line',\r\n"
+						+ "					backgroundColor : '" + "red" + "', borderColor: '#ff4d4d', fill: false,\r\n"
+						+ "					data : [ " + lstStack.get(last).getData() + " ]\r\n" + "				},";
+				for (int i = 0; i < last; i++) {
+					
+						result += "{\r\n" + "					label : '" + lstStack.get(i).getType() + "', type: 'bar', barPercentage: 0.7, \r\n"
+								+ "					backgroundColor : '" + lstStack.get(i).getColor() + "',\r\n"
+								+ "					data : [ " + lstStack.get(i).getData() + " ]\r\n" + "				},";
+					
+				}
+				result = result.substring(0, result.length() - 1);
+				return result;
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
+		} catch (Exception e) {
+
+		}
+		return "";
+	}
+}
