@@ -1,0 +1,295 @@
+[Obsolete]
+        public IActionResult Sample()
+        {
+            //var fileNameDownload = "EventCustomizeData.xlsx";
+            //var reportFolder = "files";
+            //var filePath = Path.Combine(_hostingEnvironment.WebRootPath, reportFolder, fileNameDownload);
+            //var fileName = "EventCustomizeData.xlsx";
+            //var mimeType = "application/vnd.ms-excel";
+            //return File(new FileStream(filePath, FileMode.Open), mimeType, fileName);
+
+            var net = new System.Net.WebClient();
+            var data = net.DownloadData(Path.Combine(_hostingEnvironment.WebRootPath, "files\\EventCustomizeData.xlsx"));
+            var content = new System.IO.MemoryStream(data);
+            var contentType = "APPLICATION/octet-stream";
+            var fileName = "EventCustomizeData.xlsx";
+            return File(content, contentType, fileName);
+        }
+        [Obsolete]
+        public IActionResult ExportReport()
+        {
+            try
+            {
+                
+                
+
+                #region danh sách thống kê theo tiêu chí standard
+                DataTable dt1 = new WelfareADO().GetDataTable("exec sp_ThongKeTheoTieuChi_Customize '" + event_code + "','" + Factory + "'");
+                var lst1 = new WelfareADO().ConvertDatatableToList<STT_BY_STANDARD>(dt1);
+                STT_BY_STANDARD sumary1 = new STT_BY_STANDARD()
+                {
+                    standard = "Tổng",
+                    total = lst1.Sum(a => a.total),
+                    checked1 = lst1.Sum(a => a.checked1),
+                    notcheck = lst1.Sum(a => a.notcheck)
+                };
+                lst1.Add(sumary1);
+                List<REPORT_BY_STANDARD> lstReport1 = new List<REPORT_BY_STANDARD>();
+                foreach (STT_BY_STANDARD item in lst1)
+                {
+                    REPORT_BY_STANDARD itemRp = new REPORT_BY_STANDARD()
+                    {
+                        standard = item.standard,
+                        checked1 = item.checked1,
+                        notcheck = item.notcheck,
+                        total = item.total
+                    };
+                    lstReport1.Add(itemRp);
+                }
+                DataTable dt11 = ToDataTable<REPORT_BY_STANDARD>(lstReport1);
+                #endregion
+                int numberRow = dt11.Rows.Count;
+
+                #region danh sách thống kê theo phòng ban
+                DataTable dt2 = new WelfareADO().GetDataTable("exec sp_ThongKeTheoPhongBan_Customize '" + event_code + "','" + Factory + "'");
+                var lst2 = new WelfareADO().ConvertDatatableToList<STT_BY_DEPT>(dt2);
+                STT_BY_DEPT sumary2 = new STT_BY_DEPT()
+                {
+                    dept = "Tổng",
+                    total = lst2.Sum(a => a.total),
+                    checked1 = lst2.Sum(a => a.checked1),
+                    notcheck = lst2.Sum(a => a.notcheck)
+                };
+                lst2.Add(sumary2);
+                List<REPORT_BY_DEPT> lstReport2 = new List<REPORT_BY_DEPT>();
+                foreach (STT_BY_DEPT item in lst2)
+                {
+                    REPORT_BY_DEPT itemRp = new REPORT_BY_DEPT()
+                    {
+                        dept = item.dept,
+                        checked1 = item.checked1,
+                        notcheck = item.notcheck,
+                        total = item.total
+                    };
+                    lstReport2.Add(itemRp);
+                }
+                DataTable dt22 = ToDataTable<REPORT_BY_DEPT>(lstReport2);
+                #endregion
+                int numberRow2 = dt22.Rows.Count;
+
+                string filePath = Path.Combine(_hostingEnvironment.WebRootPath, "files\\Report by Event Customize.xlsx");
+                FileInfo file = new FileInfo(filePath);
+                using (ExcelPackage excelPackage = new ExcelPackage(file))
+                {
+                    ExcelWorksheet excelWorksheet = excelPackage.Workbook.Worksheets.First();
+                    excelWorksheet.InsertRow(6, numberRow);
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Font.Size = 11;
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Font.Name = "Times New Roman";
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A6:F" + (numberRow + 5)].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    excelWorksheet.Cells["A6"].LoadFromDataTable(dt11, false);
+
+                    int dept = 10 + numberRow;
+                    excelWorksheet.InsertRow(dept, numberRow2);
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Font.Size = 11;
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Font.Name = "Times New Roman";
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                    excelWorksheet.Cells["A" + dept + ":H" + (numberRow2 + dept)].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    excelWorksheet.Cells["A" + dept].LoadFromDataTable(dt22, false);
+
+                    return File(excelPackage.GetAsByteArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Thống kê sự kiện.xlsx");
+                }
+            }
+            catch (Exception)
+            {
+                return RedirectToAction(nameof(Manager));
+            }
+        }
+        [Obsolete]
+        [HttpPost]
+        public async Task<IActionResult> Upload(IFormFile file, [FromServices] IHostingEnvironment env)
+        {
+            
+            
+            List<TS_EMPLOYEE_CUSTOMIZE> ls = new List<TS_EMPLOYEE_CUSTOMIZE>();
+            try
+            {
+                if (file == null || file.Length < 1)
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+                if (!file.FileName.Contains("EventCustomizeData"))
+                {
+                    return NotFound();
+                }
+                using (var memoStream = new MemoryStream())
+                {
+                    int count = 0;
+                    await file.CopyToAsync(memoStream).ConfigureAwait(false);
+                    using (var package = new ExcelPackage(memoStream))
+                    {
+                        var worksheet = package.Workbook.Worksheets[0];
+                        Obj2objCustomize obj = ExcelPackageToList(worksheet);
+                        List<TS_EMPLOYEE_CUSTOMIZE> lr = obj.lstEmploySuccess;
+                        ls = obj.lstEmployError;
+                        int tongSoDong = lr.Count;
+                        int soLanFor = (int)(tongSoDong / 894) + 1;
+                        for (int i = 1; i <= soLanFor; i++)
+                        {
+                            List<TS_EMPLOYEE_CUSTOMIZE> li = new List<TS_EMPLOYEE_CUSTOMIZE>();
+                            if (i < soLanFor)
+                            {
+                                li = lr.Skip((i - 1) * 894).Take(894).ToList();
+                            }
+                            else if (i == soLanFor)
+                            {
+                                li = lr.Skip((i - 1) * 894).ToList();
+                            }
+                            string sql = "INSERT INTO " + Factory + "_EMPLOYEE_CUSTOMIZE([EMP_CODE],[EMP_CARD],[EMP_NAME],[EMP_DEPT],[EVENT_CODE],[EVENT_STANDARD],[EVENT_DATE],[EVENT_NOTE],[EVENT_STATUS],[EVENT_PCNAME],[EVENT_ACTIVE]) VALUES";
+                            foreach (TS_EMPLOYEE_CUSTOMIZE r in li)
+                            {
+                                try
+                                {
+                                    sql += "('" + r.EMP_CODE + "','" + r.EMP_CARD + "',N'" + r.EMP_NAME + "',N'" + r.EMP_DEPT + "', '" + event_code + "', N'" + r.EVENT_STANDARD + "', '" + DateTime.Now + "', N'" + r.EVENT_NOTE + "', 'OK', N'" + r.EVENT_PCNAME + "', 1),";
+                                }
+                                catch
+                                {
+
+                                }
+                            }
+                            try
+                            {
+                                sql = sql.Substring(0, sql.Length - 1);
+                                count += new WelfareADO().ExecuteNon2(sql);
+                            }
+                            catch (Exception)
+                            {
+
+                            }
+                        }
+                        //foreach (TS_EMPLOYEE_CUSTOMIZE r in lr)
+                        //{
+                        //    try
+                        //    {
+                        //        string sql = "INSERT INTO " + Factory + "_EMPLOYEE_CUSTOMIZE([EMP_CODE],[EMP_CARD],[EMP_NAME],[EMP_DEPT],[EVENT_CODE],[EVENT_STANDARD],[EVENT_DATE],[EVENT_NOTE],[EVENT_STATUS],[EVENT_PCNAME],[EVENT_ACTIVE]) " +
+                        //            "VALUES('" + r.EMP_CODE + "','" + r.EMP_CARD + "',N'" + r.EMP_NAME + "',N'" + r.EMP_DEPT + "', '" + event_code + "', N'" + r.EVENT_STANDARD + "', '" + DateTime.Now + "', N'" + r.EVENT_NOTE + "', 'OK', N'" + r.EVENT_PCNAME + "', 1)";
+                        //        count += new WelfareADO().ExecuteNon2(sql);
+                        //    }
+                        //    catch(Exception ex)
+                        //    {
+                        //        continue;
+                        //    }
+                        //}
+                        TempData["lsError"] = JsonConvert.SerializeObject(ls);
+                        TempData["lsError1"] = JsonConvert.SerializeObject(ls);
+                        TempData["message"] = "Thêm mới " + count + " bản ghi thành công !";
+                        new LogFunc(_hostingEnvironment).writeToLog(HttpContext.Session.GetString("username"), "Import dữ liệu Event Customize " + event_code);
+                        return RedirectToAction(nameof(Import));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return RedirectToAction(nameof(Import));
+            }
+        }
+        [Obsolete]
+        public Obj2objCustomize ExcelPackageToList(ExcelWorksheet worksheet)
+        {
+            //khởi tạo danh sách đăng ký, danh sách bị lỗi
+            List<TS_EMPLOYEE_CUSTOMIZE> lr = new List<TS_EMPLOYEE_CUSTOMIZE>();
+            List<TS_EMPLOYEE_CUSTOMIZE> le = new List<TS_EMPLOYEE_CUSTOMIZE>();
+            var rowCount = worksheet.Dimension?.Rows;
+            if (rowCount.HasValue && rowCount.Value > 1)
+            {
+                for (int row = 2; row <= rowCount.Value; row++)
+                {
+                    try
+                    {
+                        string card, code, name, dept, standard, date, note, status, pcname;
+                        code = Convert.ToString(worksheet.Cells[row, 1].Value).Trim().PadLeft(6, '0').GetLast(6);
+                        card = Convert.ToString(worksheet.Cells[row, 2].Value).ToString().Trim().PadLeft(5, '0').GetLast(5);
+                        name = Convert.ToString(worksheet.Cells[row, 3].Value).ToString().Trim();
+                        dept = Convert.ToString(worksheet.Cells[row, 4].Value).ToString().Trim();
+                        standard = Convert.ToString(worksheet.Cells[row, 5].Value).ToString().Trim();
+                        date = Convert.ToString(worksheet.Cells[row, 6].Value).ToString().Trim();
+                        note = Convert.ToString(worksheet.Cells[row, 7].Value).ToString().Trim();
+                        status = Convert.ToString(worksheet.Cells[row, 8].Value).ToString().Trim();
+                        pcname = Convert.ToString(worksheet.Cells[row, 9].Value).ToString().Trim();
+                        if (code.Equals("000000"))
+                        {
+                            TS_EMPLOYEE_CUSTOMIZE el = new TS_EMPLOYEE_CUSTOMIZE()
+                            {
+                                EMP_CARD = card,
+                                EMP_CODE = "",
+                                EMP_DEPT = dept,
+                                EMP_NAME = name,
+                                EVENT_ACTIVE = false,
+                                EVENT_CODE = event_code,
+                                EVENT_DATE = DateTime.Now,
+                                EVENT_NOTE = note,
+                                EVENT_PCNAME = pcname,
+                                EVENT_STANDARD = standard,
+                                EVENT_STATUS = "Mã nhân viên không xác định"
+                            };
+                            le.Add(el);
+                            continue;
+                        }
+                        if (card.Equals("00000"))
+                        {
+                            TS_EMPLOYEE_CUSTOMIZE el = new TS_EMPLOYEE_CUSTOMIZE()
+                            {
+                                EMP_CARD = "",
+                                EMP_CODE = code,
+                                EMP_DEPT = dept,
+                                EMP_NAME = name,
+                                EVENT_ACTIVE = false,
+                                EVENT_CODE = event_code,
+                                EVENT_DATE = DateTime.Now,
+                                EVENT_NOTE = note,
+                                EVENT_PCNAME = pcname,
+                                EVENT_STANDARD = standard,
+                                EVENT_STATUS = "Mã thẻ không xác định"
+                            };
+                            le.Add(el);
+                            continue;
+                        }
+                        bool r = CheckExistsEmployeeCustomize(card, code, event_code);
+                        if (!r)
+                        {
+                            TS_EMPLOYEE_CUSTOMIZE el = new TS_EMPLOYEE_CUSTOMIZE()
+                            {
+                                EMP_CARD = card,
+                                EMP_CODE = code,
+                                EMP_DEPT = dept,
+                                EMP_NAME = name,
+                                EVENT_ACTIVE = false,
+                                EVENT_CODE = event_code,
+                                EVENT_DATE = DateTime.Now,
+                                EVENT_NOTE = note,
+                                EVENT_PCNAME = pcname,
+                                EVENT_STANDARD = standard,
+                                EVENT_STATUS = status
+                            };
+                            lr.Add(el);
+                            continue;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
+            return new Obj2objCustomize()
+            {
+                lstEmploySuccess = lr,
+                lstEmployError = le
+            };
+        }
