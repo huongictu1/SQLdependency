@@ -1,0 +1,1397 @@
+PGDMP                         y            Cvn_asset_test    12.3    12.3 £    J           0    0    ENCODING    ENCODING        SET client_encoding = 'UTF8';
+                      false            K           0    0 
+   STDSTRINGS 
+   STDSTRINGS     (   SET standard_conforming_strings = 'on';
+                      false            L           0    0 
+   SEARCHPATH 
+   SEARCHPATH     8   SELECT pg_catalog.set_config('search_path', '', false);
+                      false            M           1262    26568    Cvn_asset_test    DATABASE         CREATE DATABASE "Cvn_asset_test" WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'English_United States.1252' LC_CTYPE = 'English_United States.1252';
+     DROP DATABASE "Cvn_asset_test";
+                postgres    false                        2615    26637    pgagent    SCHEMA        CREATE SCHEMA pgagent;
+    DROP SCHEMA pgagent;
+                postgres    false                       1255    26806    pga_exception_trigger()    FUNCTION       CREATE FUNCTION pgagent.pga_exception_trigger() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+
+    v_jobid int4 := 0;
+
+BEGIN
+
+     IF TG_OP = 'DELETE' THEN
+
+        SELECT INTO v_jobid jscjobid FROM pgagent.pga_schedule WHERE jscid = OLD.jexscid;
+
+        -- update pga_job from remaining schedules
+        -- the actual calculation of jobnextrun will be performed in the trigger
+        UPDATE pgagent.pga_job
+           SET jobnextrun = NULL
+         WHERE jobenabled AND jobid = v_jobid;
+        RETURN OLD;
+    ELSE
+
+        SELECT INTO v_jobid jscjobid FROM pgagent.pga_schedule WHERE jscid = NEW.jexscid;
+
+        UPDATE pgagent.pga_job
+           SET jobnextrun = NULL
+         WHERE jobenabled AND jobid = v_jobid;
+        RETURN NEW;
+    END IF;
+END;
+$$;
+ /   DROP FUNCTION pgagent.pga_exception_trigger();
+       pgagent          postgres    false    8                       1255    26801    pga_is_leap_year(smallint)    FUNCTION     
+  CREATE FUNCTION pgagent.pga_is_leap_year(smallint) RETURNS boolean
+    LANGUAGE plpgsql IMMUTABLE
+    AS $_$
+BEGIN
+    IF $1 % 4 != 0 THEN
+        RETURN FALSE;
+    END IF;
+
+    IF $1 % 100 != 0 THEN
+        RETURN TRUE;
+    END IF;
+
+    RETURN $1 % 400 = 0;
+END;
+$_$;
+ 2   DROP FUNCTION pgagent.pga_is_leap_year(smallint);
+       pgagent          postgres    false    8                       1255    26802    pga_job_trigger()    FUNCTION       CREATE FUNCTION pgagent.pga_job_trigger() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.jobenabled THEN
+        IF NEW.jobnextrun IS NULL THEN
+             SELECT INTO NEW.jobnextrun
+                    MIN(pgagent.pga_next_schedule(jscid, jscstart, jscend, jscminutes, jschours, jscweekdays, jscmonthdays, jscmonths))
+               FROM pgagent.pga_schedule
+              WHERE jscenabled AND jscjobid=OLD.jobid;
+        END IF;
+    ELSE
+        NEW.jobnextrun := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+ )   DROP FUNCTION pgagent.pga_job_trigger();
+       pgagent          postgres    false    8                       1255    26799 …   pga_next_schedule(integer, timestamp with time zone, timestamp with time zone, boolean[], boolean[], boolean[], boolean[], boolean[])    FUNCTION     û8  CREATE FUNCTION pgagent.pga_next_schedule(integer, timestamp with time zone, timestamp with time zone, boolean[], boolean[], boolean[], boolean[], boolean[]) RETURNS timestamp with time zone
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE
+    jscid           ALIAS FOR $1;
+    jscstart        ALIAS FOR $2;
+    jscend          ALIAS FOR $3;
+    jscminutes      ALIAS FOR $4;
+    jschours        ALIAS FOR $5;
+    jscweekdays     ALIAS FOR $6;
+    jscmonthdays    ALIAS FOR $7;
+    jscmonths       ALIAS FOR $8;
+
+    nextrun         timestamp := '1970-01-01 00:00:00-00';
+    runafter        timestamp := '1970-01-01 00:00:00-00';
+
+    bingo            bool := FALSE;
+    gotit            bool := FALSE;
+    foundval        bool := FALSE;
+    daytweak        bool := FALSE;
+    minutetweak        bool := FALSE;
+
+    i                int2 := 0;
+    d                int2 := 0;
+
+    nextminute        int2 := 0;
+    nexthour        int2 := 0;
+    nextday            int2 := 0;
+    nextmonth       int2 := 0;
+    nextyear        int2 := 0;
+
+
+BEGIN
+    -- No valid start date has been specified
+    IF jscstart IS NULL THEN RETURN NULL; END IF;
+
+    -- The schedule is past its end date
+    IF jscend IS NOT NULL AND jscend < now() THEN RETURN NULL; END IF;
+
+    -- Get the time to find the next run after. It will just be the later of
+    -- now() + 1m and the start date for the time being, however, we might want to
+    -- do more complex things using this value in the future.
+    IF date_trunc('MINUTE', jscstart) > date_trunc('MINUTE', (now() + '1 Minute'::interval)) THEN
+        runafter := date_trunc('MINUTE', jscstart);
+    ELSE
+        runafter := date_trunc('MINUTE', (now() + '1 Minute'::interval));
+    END IF;
+
+    --
+    -- Enter a loop, generating next run timestamps until we find one
+    -- that falls on the required weekday, and is not matched by an exception
+    --
+
+    WHILE bingo = FALSE LOOP
+
+        --
+        -- Get the next run year
+        --
+        nextyear := date_part('YEAR', runafter);
+
+        --
+        -- Get the next run month
+        --
+        nextmonth := date_part('MONTH', runafter);
+        gotit := FALSE;
+        FOR i IN (nextmonth) .. 12 LOOP
+            IF jscmonths[i] = TRUE THEN
+                nextmonth := i;
+                gotit := TRUE;
+                foundval := TRUE;
+                EXIT;
+            END IF;
+        END LOOP;
+        IF gotit = FALSE THEN
+            FOR i IN 1 .. (nextmonth - 1) LOOP
+                IF jscmonths[i] = TRUE THEN
+                    nextmonth := i;
+
+                    -- Wrap into next year
+                    nextyear := nextyear + 1;
+                    gotit := TRUE;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+           END LOOP;
+        END IF;
+
+        --
+        -- Get the next run day
+        --
+        -- If the year, or month have incremented, get the lowest day,
+        -- otherwise look for the next day matching or after today.
+        IF (nextyear > date_part('YEAR', runafter) OR nextmonth > date_part('MONTH', runafter)) THEN
+            nextday := 1;
+            FOR i IN 1 .. 32 LOOP
+                IF jscmonthdays[i] = TRUE THEN
+                    nextday := i;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+        ELSE
+            nextday := date_part('DAY', runafter);
+            gotit := FALSE;
+            FOR i IN nextday .. 32 LOOP
+                IF jscmonthdays[i] = TRUE THEN
+                    nextday := i;
+                    gotit := TRUE;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+            IF gotit = FALSE THEN
+                FOR i IN 1 .. (nextday - 1) LOOP
+                    IF jscmonthdays[i] = TRUE THEN
+                        nextday := i;
+
+                        -- Wrap into next month
+                        IF nextmonth = 12 THEN
+                            nextyear := nextyear + 1;
+                            nextmonth := 1;
+                        ELSE
+                            nextmonth := nextmonth + 1;
+                        END IF;
+                        gotit := TRUE;
+                        foundval := TRUE;
+                        EXIT;
+                    END IF;
+                END LOOP;
+            END IF;
+        END IF;
+
+        -- Was the last day flag selected?
+        IF nextday = 32 THEN
+            IF nextmonth = 1 THEN
+                nextday := 31;
+            ELSIF nextmonth = 2 THEN
+                IF pgagent.pga_is_leap_year(nextyear) = TRUE THEN
+                    nextday := 29;
+                ELSE
+                    nextday := 28;
+                END IF;
+            ELSIF nextmonth = 3 THEN
+                nextday := 31;
+            ELSIF nextmonth = 4 THEN
+                nextday := 30;
+            ELSIF nextmonth = 5 THEN
+                nextday := 31;
+            ELSIF nextmonth = 6 THEN
+                nextday := 30;
+            ELSIF nextmonth = 7 THEN
+                nextday := 31;
+            ELSIF nextmonth = 8 THEN
+                nextday := 31;
+            ELSIF nextmonth = 9 THEN
+                nextday := 30;
+            ELSIF nextmonth = 10 THEN
+                nextday := 31;
+            ELSIF nextmonth = 11 THEN
+                nextday := 30;
+            ELSIF nextmonth = 12 THEN
+                nextday := 31;
+            END IF;
+        END IF;
+
+        --
+        -- Get the next run hour
+        --
+        -- If the year, month or day have incremented, get the lowest hour,
+        -- otherwise look for the next hour matching or after the current one.
+        IF (nextyear > date_part('YEAR', runafter) OR nextmonth > date_part('MONTH', runafter) OR nextday > date_part('DAY', runafter) OR daytweak = TRUE) THEN
+            nexthour := 0;
+            FOR i IN 1 .. 24 LOOP
+                IF jschours[i] = TRUE THEN
+                    nexthour := i - 1;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+        ELSE
+            nexthour := date_part('HOUR', runafter);
+            gotit := FALSE;
+            FOR i IN (nexthour + 1) .. 24 LOOP
+                IF jschours[i] = TRUE THEN
+                    nexthour := i - 1;
+                    gotit := TRUE;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+            IF gotit = FALSE THEN
+                FOR i IN 1 .. nexthour LOOP
+                    IF jschours[i] = TRUE THEN
+                        nexthour := i - 1;
+
+                        -- Wrap into next month
+                        IF (nextmonth = 1 OR nextmonth = 3 OR nextmonth = 5 OR nextmonth = 7 OR nextmonth = 8 OR nextmonth = 10 OR nextmonth = 12) THEN
+                            d = 31;
+                        ELSIF (nextmonth = 4 OR nextmonth = 6 OR nextmonth = 9 OR nextmonth = 11) THEN
+                            d = 30;
+                        ELSE
+                            IF pgagent.pga_is_leap_year(nextyear) = TRUE THEN
+                                d := 29;
+                            ELSE
+                                d := 28;
+                            END IF;
+                        END IF;
+
+                        IF nextday = d THEN
+                            nextday := 1;
+                            IF nextmonth = 12 THEN
+                                nextyear := nextyear + 1;
+                                nextmonth := 1;
+                            ELSE
+                                nextmonth := nextmonth + 1;
+                            END IF;
+                        ELSE
+                            nextday := nextday + 1;
+                        END IF;
+
+                        gotit := TRUE;
+                        foundval := TRUE;
+                        EXIT;
+                    END IF;
+                END LOOP;
+            END IF;
+        END IF;
+
+        --
+        -- Get the next run minute
+        --
+        -- If the year, month day or hour have incremented, get the lowest minute,
+        -- otherwise look for the next minute matching or after the current one.
+        IF (nextyear > date_part('YEAR', runafter) OR nextmonth > date_part('MONTH', runafter) OR nextday > date_part('DAY', runafter) OR nexthour > date_part('HOUR', runafter) OR daytweak = TRUE) THEN
+            nextminute := 0;
+            IF minutetweak = TRUE THEN
+        d := 1;
+            ELSE
+        d := date_part('YEAR', runafter)::int2;
+            END IF;
+            FOR i IN d .. 60 LOOP
+                IF jscminutes[i] = TRUE THEN
+                    nextminute := i - 1;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+        ELSE
+            nextminute := date_part('MINUTE', runafter);
+            gotit := FALSE;
+            FOR i IN (nextminute + 1) .. 60 LOOP
+                IF jscminutes[i] = TRUE THEN
+                    nextminute := i - 1;
+                    gotit := TRUE;
+                    foundval := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+            IF gotit = FALSE THEN
+                FOR i IN 1 .. nextminute LOOP
+                    IF jscminutes[i] = TRUE THEN
+                        nextminute := i - 1;
+
+                        -- Wrap into next hour
+                        IF (nextmonth = 1 OR nextmonth = 3 OR nextmonth = 5 OR nextmonth = 7 OR nextmonth = 8 OR nextmonth = 10 OR nextmonth = 12) THEN
+                            d = 31;
+                        ELSIF (nextmonth = 4 OR nextmonth = 6 OR nextmonth = 9 OR nextmonth = 11) THEN
+                            d = 30;
+                        ELSE
+                            IF pgagent.pga_is_leap_year(nextyear) = TRUE THEN
+                                d := 29;
+                            ELSE
+                                d := 28;
+                            END IF;
+                        END IF;
+
+                        IF nexthour = 23 THEN
+                            nexthour = 0;
+                            IF nextday = d THEN
+                                nextday := 1;
+                                IF nextmonth = 12 THEN
+                                    nextyear := nextyear + 1;
+                                    nextmonth := 1;
+                                ELSE
+                                    nextmonth := nextmonth + 1;
+                                END IF;
+                            ELSE
+                                nextday := nextday + 1;
+                            END IF;
+                        ELSE
+                            nexthour := nexthour + 1;
+                        END IF;
+
+                        gotit := TRUE;
+                        foundval := TRUE;
+                        EXIT;
+                    END IF;
+                END LOOP;
+            END IF;
+        END IF;
+
+        -- Build the result, and check it is not the same as runafter - this may
+        -- happen if all array entries are set to false. In this case, add a minute.
+
+        nextrun := (nextyear::varchar || '-'::varchar || nextmonth::varchar || '-' || nextday::varchar || ' ' || nexthour::varchar || ':' || nextminute::varchar)::timestamptz;
+
+        IF nextrun = runafter AND foundval = FALSE THEN
+                nextrun := nextrun + INTERVAL '1 Minute';
+        END IF;
+
+        -- If the result is past the end date, exit.
+        IF nextrun > jscend THEN
+            RETURN NULL;
+        END IF;
+
+        -- Check to ensure that the nextrun time is actually still valid. Its
+        -- possible that wrapped values may have carried the nextrun onto an
+        -- invalid time or date.
+        IF ((jscminutes = '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}' OR jscminutes[date_part('MINUTE', nextrun) + 1] = TRUE) AND
+            (jschours = '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}' OR jschours[date_part('HOUR', nextrun) + 1] = TRUE) AND
+            (jscmonthdays = '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}' OR jscmonthdays[date_part('DAY', nextrun)] = TRUE OR
+            (jscmonthdays = '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,t}' AND
+             ((date_part('MONTH', nextrun) IN (1,3,5,7,8,10,12) AND date_part('DAY', nextrun) = 31) OR
+              (date_part('MONTH', nextrun) IN (4,6,9,11) AND date_part('DAY', nextrun) = 30) OR
+              (date_part('MONTH', nextrun) = 2 AND ((pgagent.pga_is_leap_year(date_part('DAY', nextrun)::int2) AND date_part('DAY', nextrun) = 29) OR date_part('DAY', nextrun) = 28))))) AND
+            (jscmonths = '{f,f,f,f,f,f,f,f,f,f,f,f}' OR jscmonths[date_part('MONTH', nextrun)] = TRUE)) THEN
+
+
+            -- Now, check to see if the nextrun time found is a) on an acceptable
+            -- weekday, and b) not matched by an exception. If not, set
+            -- runafter = nextrun and try again.
+
+            -- Check for a wildcard weekday
+            gotit := FALSE;
+            FOR i IN 1 .. 7 LOOP
+                IF jscweekdays[i] = TRUE THEN
+                    gotit := TRUE;
+                    EXIT;
+                END IF;
+            END LOOP;
+
+            -- OK, is the correct weekday selected, or a wildcard?
+            IF (jscweekdays[date_part('DOW', nextrun) + 1] = TRUE OR gotit = FALSE) THEN
+
+                -- Check for exceptions
+                SELECT INTO d jexid FROM pgagent.pga_exception WHERE jexscid = jscid AND ((jexdate = nextrun::date AND jextime = nextrun::time) OR (jexdate = nextrun::date AND jextime IS NULL) OR (jexdate IS NULL AND jextime = nextrun::time));
+                IF FOUND THEN
+                    -- Nuts - found an exception. Increment the time and try again
+                    runafter := nextrun + INTERVAL '1 Minute';
+                    bingo := FALSE;
+                    minutetweak := TRUE;
+            daytweak := FALSE;
+                ELSE
+                    bingo := TRUE;
+                END IF;
+            ELSE
+                -- We're on the wrong week day - increment a day and try again.
+                runafter := nextrun + INTERVAL '1 Day';
+                bingo := FALSE;
+                minutetweak := FALSE;
+                daytweak := TRUE;
+            END IF;
+
+        ELSE
+            runafter := nextrun + INTERVAL '1 Minute';
+            bingo := FALSE;
+            minutetweak := TRUE;
+        daytweak := FALSE;
+        END IF;
+
+    END LOOP;
+
+    RETURN nextrun;
+END;
+$_$;
+    DROP FUNCTION pgagent.pga_next_schedule(integer, timestamp with time zone, timestamp with time zone, boolean[], boolean[], boolean[], boolean[], boolean[]);
+       pgagent          postgres    false    8                       1255    26804    pga_schedule_trigger()    FUNCTION     /  CREATE FUNCTION pgagent.pga_schedule_trigger() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        -- update pga_job from remaining schedules
+        -- the actual calculation of jobnextrun will be performed in the trigger
+        UPDATE pgagent.pga_job
+           SET jobnextrun = NULL
+         WHERE jobenabled AND jobid=OLD.jscjobid;
+        RETURN OLD;
+    ELSE
+        UPDATE pgagent.pga_job
+           SET jobnextrun = NULL
+         WHERE jobenabled AND jobid=NEW.jscjobid;
+        RETURN NEW;
+    END IF;
+END;
+$$;
+ .   DROP FUNCTION pgagent.pga_schedule_trigger();
+       pgagent          postgres    false    8                       1255    26798    pgagent_schema_version()    FUNCTION     í   CREATE FUNCTION pgagent.pgagent_schema_version() RETURNS smallint
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- RETURNS PGAGENT MAJOR VERSION
+    -- WE WILL CHANGE THE MAJOR VERSION, ONLY IF THERE IS A SCHEMA CHANGE
+    RETURN 4;
+END;
+$$;
+ 0   DROP FUNCTION pgagent.pgagent_schema_version();
+       pgagent          postgres    false    8            þ            1259    26743 
+   pga_exception    TABLE     —   CREATE TABLE pgagent.pga_exception (
+    jexid integer NOT NULL,
+    jexscid integer NOT NULL,
+    jexdate date,
+    jextime time without time zone
+);
+ "   DROP TABLE pgagent.pga_exception;
+       pgagent         heap    postgres    false    8            ý            1259    26741    pga_exception_jexid_seq    SEQUENCE        CREATE SEQUENCE pgagent.pga_exception_jexid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ /   DROP SEQUENCE pgagent.pga_exception_jexid_seq;
+       pgagent          postgres    false    8    254            N           0    0    pga_exception_jexid_seq    SEQUENCE OWNED BY     U   ALTER SEQUENCE pgagent.pga_exception_jexid_seq OWNED BY pgagent.pga_exception.jexid;
+          pgagent          postgres    false    253            ø            1259    26661    pga_job    TABLE       CREATE TABLE pgagent.pga_job (
+    jobid integer NOT NULL,
+    jobjclid integer NOT NULL,
+    jobname text NOT NULL,
+    jobdesc text DEFAULT ''::text NOT NULL,
+    jobhostagent text DEFAULT ''::text NOT NULL,
+    jobenabled boolean DEFAULT true NOT NULL,
+    jobcreated timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jobchanged timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jobagentid integer,
+    jobnextrun timestamp with time zone,
+    joblastrun timestamp with time zone
+);
+    DROP TABLE pgagent.pga_job;
+       pgagent         heap    postgres    false    8            ÷            1259    26659    pga_job_jobid_seq    SEQUENCE     Š   CREATE SEQUENCE pgagent.pga_job_jobid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ )   DROP SEQUENCE pgagent.pga_job_jobid_seq;
+       pgagent          postgres    false    248    8            O           0    0    pga_job_jobid_seq    SEQUENCE OWNED BY     I   ALTER SEQUENCE pgagent.pga_job_jobid_seq OWNED BY pgagent.pga_job.jobid;
+          pgagent          postgres    false    247            ô            1259    26638    pga_jobagent    TABLE     ¯   CREATE TABLE pgagent.pga_jobagent (
+    jagpid integer NOT NULL,
+    jaglogintime timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jagstation text NOT NULL
+);
+ !   DROP TABLE pgagent.pga_jobagent;
+       pgagent         heap    postgres    false    8            ö            1259    26649    pga_jobclass    TABLE     ]   CREATE TABLE pgagent.pga_jobclass (
+    jclid integer NOT NULL,
+    jclname text NOT NULL
+);
+ !   DROP TABLE pgagent.pga_jobclass;
+       pgagent         heap    postgres    false    8            õ            1259    26647    pga_jobclass_jclid_seq    SEQUENCE        CREATE SEQUENCE pgagent.pga_jobclass_jclid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ .   DROP SEQUENCE pgagent.pga_jobclass_jclid_seq;
+       pgagent          postgres    false    246    8            P           0    0    pga_jobclass_jclid_seq    SEQUENCE OWNED BY     S   ALTER SEQUENCE pgagent.pga_jobclass_jclid_seq OWNED BY pgagent.pga_jobclass.jclid;
+          pgagent          postgres    false    245                        1259    26758 
+   pga_joblog    TABLE     Š  CREATE TABLE pgagent.pga_joblog (
+    jlgid integer NOT NULL,
+    jlgjobid integer NOT NULL,
+    jlgstatus character(1) DEFAULT 'r'::bpchar NOT NULL,
+    jlgstart timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jlgduration interval,
+    CONSTRAINT pga_joblog_jlgstatus_check CHECK ((jlgstatus = ANY (ARRAY['r'::bpchar, 's'::bpchar, 'f'::bpchar, 'i'::bpchar, 'd'::bpchar])))
+);
+    DROP TABLE pgagent.pga_joblog;
+       pgagent         heap    postgres    false    8            ÿ            1259    26756    pga_joblog_jlgid_seq    SEQUENCE        CREATE SEQUENCE pgagent.pga_joblog_jlgid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ ,   DROP SEQUENCE pgagent.pga_joblog_jlgid_seq;
+       pgagent          postgres    false    8    256            Q           0    0    pga_joblog_jlgid_seq    SEQUENCE OWNED BY     O   ALTER SEQUENCE pgagent.pga_joblog_jlgid_seq OWNED BY pgagent.pga_joblog.jlgid;
+          pgagent          postgres    false    255            ú            1259    26687    pga_jobstep    TABLE        CREATE TABLE pgagent.pga_jobstep (
+    jstid integer NOT NULL,
+    jstjobid integer NOT NULL,
+    jstname text NOT NULL,
+    jstdesc text DEFAULT ''::text NOT NULL,
+    jstenabled boolean DEFAULT true NOT NULL,
+    jstkind character(1) NOT NULL,
+    jstcode text NOT NULL,
+    jstconnstr text DEFAULT ''::text NOT NULL,
+    jstdbname name DEFAULT ''::name NOT NULL,
+    jstonerror character(1) DEFAULT 'f'::bpchar NOT NULL,
+    jscnextrun timestamp with time zone,
+    CONSTRAINT pga_jobstep_check CHECK ((((jstconnstr <> ''::text) AND (jstkind = 's'::bpchar)) OR ((jstconnstr = ''::text) AND ((jstkind = 'b'::bpchar) OR (jstdbname <> ''::name))))),
+    CONSTRAINT pga_jobstep_check1 CHECK ((((jstdbname <> ''::name) AND (jstkind = 's'::bpchar)) OR ((jstdbname = ''::name) AND ((jstkind = 'b'::bpchar) OR (jstconnstr <> ''::text))))),
+    CONSTRAINT pga_jobstep_jstkind_check CHECK ((jstkind = ANY (ARRAY['b'::bpchar, 's'::bpchar]))),
+    CONSTRAINT pga_jobstep_jstonerror_check CHECK ((jstonerror = ANY (ARRAY['f'::bpchar, 's'::bpchar, 'i'::bpchar])))
+);
+     DROP TABLE pgagent.pga_jobstep;
+       pgagent         heap    postgres    false    8            ù            1259    26685    pga_jobstep_jstid_seq    SEQUENCE     Ž   CREATE SEQUENCE pgagent.pga_jobstep_jstid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ -   DROP SEQUENCE pgagent.pga_jobstep_jstid_seq;
+       pgagent          postgres    false    8    250            R           0    0    pga_jobstep_jstid_seq    SEQUENCE OWNED BY     Q   ALTER SEQUENCE pgagent.pga_jobstep_jstid_seq OWNED BY pgagent.pga_jobstep.jstid;
+          pgagent          postgres    false    249                       1259    26775    pga_jobsteplog    TABLE     Ü  CREATE TABLE pgagent.pga_jobsteplog (
+    jslid integer NOT NULL,
+    jsljlgid integer NOT NULL,
+    jsljstid integer NOT NULL,
+    jslstatus character(1) DEFAULT 'r'::bpchar NOT NULL,
+    jslresult integer,
+    jslstart timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jslduration interval,
+    jsloutput text,
+    CONSTRAINT pga_jobsteplog_jslstatus_check CHECK ((jslstatus = ANY (ARRAY['r'::bpchar, 's'::bpchar, 'i'::bpchar, 'f'::bpchar, 'd'::bpchar])))
+);
+ #   DROP TABLE pgagent.pga_jobsteplog;
+       pgagent         heap    postgres    false    8                       1259    26773    pga_jobsteplog_jslid_seq    SEQUENCE     ‘   CREATE SEQUENCE pgagent.pga_jobsteplog_jslid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 0   DROP SEQUENCE pgagent.pga_jobsteplog_jslid_seq;
+       pgagent          postgres    false    258    8            S           0    0    pga_jobsteplog_jslid_seq    SEQUENCE OWNED BY     W   ALTER SEQUENCE pgagent.pga_jobsteplog_jslid_seq OWNED BY pgagent.pga_jobsteplog.jslid;
+          pgagent          postgres    false    257            ü            1259    26713    pga_schedule    TABLE     '  CREATE TABLE pgagent.pga_schedule (
+    jscid integer NOT NULL,
+    jscjobid integer NOT NULL,
+    jscname text NOT NULL,
+    jscdesc text DEFAULT ''::text NOT NULL,
+    jscenabled boolean DEFAULT true NOT NULL,
+    jscstart timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    jscend timestamp with time zone,
+    jscminutes boolean[] DEFAULT '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}'::boolean[] NOT NULL,
+    jschours boolean[] DEFAULT '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}'::boolean[] NOT NULL,
+    jscweekdays boolean[] DEFAULT '{f,f,f,f,f,f,f}'::boolean[] NOT NULL,
+    jscmonthdays boolean[] DEFAULT '{f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f}'::boolean[] NOT NULL,
+    jscmonths boolean[] DEFAULT '{f,f,f,f,f,f,f,f,f,f,f,f}'::boolean[] NOT NULL,
+    CONSTRAINT pga_schedule_jschours_size CHECK ((array_upper(jschours, 1) = 24)),
+    CONSTRAINT pga_schedule_jscminutes_size CHECK ((array_upper(jscminutes, 1) = 60)),
+    CONSTRAINT pga_schedule_jscmonthdays_size CHECK ((array_upper(jscmonthdays, 1) = 32)),
+    CONSTRAINT pga_schedule_jscmonths_size CHECK ((array_upper(jscmonths, 1) = 12)),
+    CONSTRAINT pga_schedule_jscweekdays_size CHECK ((array_upper(jscweekdays, 1) = 7))
+);
+ !   DROP TABLE pgagent.pga_schedule;
+       pgagent         heap    postgres    false    8            û            1259    26711    pga_schedule_jscid_seq    SEQUENCE        CREATE SEQUENCE pgagent.pga_schedule_jscid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ .   DROP SEQUENCE pgagent.pga_schedule_jscid_seq;
+       pgagent          postgres    false    8    252            T           0    0    pga_schedule_jscid_seq    SEQUENCE OWNED BY     S   ALTER SEQUENCE pgagent.pga_schedule_jscid_seq OWNED BY pgagent.pga_schedule.jscid;
+          pgagent          postgres    false    251            Ô            1259    16549    tbl_cost_center    TABLE     è   CREATE TABLE public.tbl_cost_center (
+    id integer NOT NULL,
+    cost_center character varying(500),
+    cost_center_name character varying(500),
+    location_nm character varying(200),
+    disposal_dept character varying(200)
+);
+ #   DROP TABLE public.tbl_cost_center;
+       public         heap    postgres    false            Ó            1259    16547    cost_center_id_seq    SEQUENCE     Š   CREATE SEQUENCE public.cost_center_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ )   DROP SEQUENCE public.cost_center_id_seq;
+       public          postgres    false    212            U           0    0    cost_center_id_seq    SEQUENCE OWNED BY     M   ALTER SEQUENCE public.cost_center_id_seq OWNED BY public.tbl_cost_center.id;
+          public          postgres    false    211            á            1259    24824 
+   json_table    TABLE     4   CREATE TABLE public.json_table (
+    myjson json
+);
+    DROP TABLE public.json_table;
+       public         heap    postgres    false            Ø            1259    16683    tbl_approve_details    TABLE     â   CREATE TABLE public.tbl_approve_details (
+    id integer NOT NULL,
+    id_approve_process integer,
+    detail_order integer,
+    pic_code character varying(6),
+    create_date date,
+    update_date date,
+    active boolean
+);
+ '   DROP TABLE public.tbl_approve_details;
+       public         heap    postgres    false            ×            1259    16681    tbl_approve_details_id_seq    SEQUENCE     ’   CREATE SEQUENCE public.tbl_approve_details_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 1   DROP SEQUENCE public.tbl_approve_details_id_seq;
+       public          postgres    false    216            V           0    0    tbl_approve_details_id_seq    SEQUENCE OWNED BY     Y   ALTER SEQUENCE public.tbl_approve_details_id_seq OWNED BY public.tbl_approve_details.id;
+          public          postgres    false    215            Ö            1259    16675    tbl_approve_process    TABLE       CREATE TABLE public.tbl_approve_process (
+    id integer NOT NULL,
+    dept_order integer,
+    dept_code character varying(100),
+    approve_type character varying(30),
+    note character varying(30),
+    create_date date,
+    active boolean,
+    update_date date
+);
+ '   DROP TABLE public.tbl_approve_process;
+       public         heap    postgres    false            Õ            1259    16673    tbl_approve_process_id_seq    SEQUENCE     ’   CREATE SEQUENCE public.tbl_approve_process_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 1   DROP SEQUENCE public.tbl_approve_process_id_seq;
+       public          postgres    false    214            W           0    0    tbl_approve_process_id_seq    SEQUENCE OWNED BY     Y   ALTER SEQUENCE public.tbl_approve_process_id_seq OWNED BY public.tbl_approve_process.id;
+          public          postgres    false    213            à            1259    24800    tbl_demo_treatment    TABLE     µ   CREATE TABLE public.tbl_demo_treatment (
+    id integer NOT NULL,
+    fact character varying,
+    type character varying,
+    data character varying,
+    color character varying
+);
+ &   DROP TABLE public.tbl_demo_treatment;
+       public         heap    postgres    false            ß            1259    24798    tbl_demo_treatment_id_seq    SEQUENCE     ‘   CREATE SEQUENCE public.tbl_demo_treatment_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 0   DROP SEQUENCE public.tbl_demo_treatment_id_seq;
+       public          postgres    false    224            X           0    0    tbl_demo_treatment_id_seq    SEQUENCE OWNED BY     W   ALTER SEQUENCE public.tbl_demo_treatment_id_seq OWNED BY public.tbl_demo_treatment.id;
+          public          postgres    false    223            ñ            1259    25453    tbl_disposal_deleted    TABLE     `  CREATE TABLE public.tbl_disposal_deleted (
+    total_id integer NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    sub_asset_no integer NOT NULL,
+    asset_nm character varying(5000) NOT NULL,
+    admi_acct_nm character varying(5000) NOT NULL,
+    cost_center character varying(5000) NOT NULL,
+    cost_center_name character varying(5000) NOT NULL,
+    location_nm character varying(5000) NOT NULL,
+    kind_cd integer NOT NULL,
+    kind_nm character varying(5000) NOT NULL,
+    class_cd character varying(5000) NOT NULL,
+    class_nm character varying(5000) NOT NULL,
+    acq_date character varying(5000) NOT NULL,
+    ope_date character varying(5000) NOT NULL,
+    acq_val_comp double precision NOT NULL,
+    nbv double precision NOT NULL,
+    supplier_name character varying(5000),
+    capital_budget_code character varying(5000),
+    note1 character varying(5000),
+    note2 character varying(5000),
+    invoice_no character varying(5000),
+    die_no character varying(5000),
+    process character varying(5000),
+    name_old_fa character varying(5000),
+    mgrmea character varying(500),
+    mgrdept character varying(500),
+    request_status character varying(5000),
+    request_note character varying(5000),
+    created_date time with time zone,
+    created_by character varying(50),
+    updated_date time with time zone,
+    picdept character varying(500)
+);
+ (   DROP TABLE public.tbl_disposal_deleted;
+       public         heap    postgres    false            ð            1259    25451 !   tbl_disposal_deleted_total_id_seq    SEQUENCE     ™   CREATE SEQUENCE public.tbl_disposal_deleted_total_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 8   DROP SEQUENCE public.tbl_disposal_deleted_total_id_seq;
+       public          postgres    false    241            Y           0    0 !   tbl_disposal_deleted_total_id_seq    SEQUENCE OWNED BY     g   ALTER SEQUENCE public.tbl_disposal_deleted_total_id_seq OWNED BY public.tbl_disposal_deleted.total_id;
+          public          postgres    false    240            é            1259    24959    tbl_disposal_dept_request    TABLE     –  CREATE TABLE public.tbl_disposal_dept_request (
+    id integer NOT NULL,
+    request_no character varying NOT NULL,
+    explanation_doc character varying,
+    pic_request character varying,
+    created_date date,
+    updated_date date,
+    created_by character varying,
+    status character varying,
+    note character varying,
+    details json[],
+    process_details json[],
+    dept character varying
+);
+ -   DROP TABLE public.tbl_disposal_dept_request;
+       public         heap    postgres    false            è            1259    24957     tbl_disposal_dept_request_id_seq    SEQUENCE     ˜   CREATE SEQUENCE public.tbl_disposal_dept_request_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 7   DROP SEQUENCE public.tbl_disposal_dept_request_id_seq;
+       public          postgres    false    233            Z           0    0     tbl_disposal_dept_request_id_seq    SEQUENCE OWNED BY     e   ALTER SEQUENCE public.tbl_disposal_dept_request_id_seq OWNED BY public.tbl_disposal_dept_request.id;
+          public          postgres    false    232            ï            1259    25441    tbl_disposal_mea_actual    TABLE     w  CREATE TABLE public.tbl_disposal_mea_actual (
+    id integer NOT NULL,
+    request_no character varying,
+    pic_request character varying,
+    created_date date,
+    updated_date date,
+    created_by character varying,
+    status character varying,
+    note character varying,
+    assets_details json[],
+    process_details json[],
+    explain_document character varying
+);
+ +   DROP TABLE public.tbl_disposal_mea_actual;
+       public         heap    postgres    false            î            1259    25439    tbl_disposal_mea_actual_id_seq    SEQUENCE     –   CREATE SEQUENCE public.tbl_disposal_mea_actual_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 5   DROP SEQUENCE public.tbl_disposal_mea_actual_id_seq;
+       public          postgres    false    239            [           0    0    tbl_disposal_mea_actual_id_seq    SEQUENCE OWNED BY     a   ALTER SEQUENCE public.tbl_disposal_mea_actual_id_seq OWNED BY public.tbl_disposal_mea_actual.id;
+          public          postgres    false    238            í            1259    25030    tbl_disposal_mea_request    TABLE       CREATE TABLE public.tbl_disposal_mea_request (
+    id integer NOT NULL,
+    request_no character varying NOT NULL,
+    cds_no character varying,
+    disposal_place character varying,
+    pic_request character varying,
+    created_date date,
+    updated_date date,
+    created_by character varying,
+    status character varying,
+    note character varying,
+    assets_details json[],
+    process_details json[]
+);
+ ,   DROP TABLE public.tbl_disposal_mea_request;
+       public         heap    postgres    false            ì            1259    25028    tbl_disposal_mea_request_id_seq    SEQUENCE     —   CREATE SEQUENCE public.tbl_disposal_mea_request_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 6   DROP SEQUENCE public.tbl_disposal_mea_request_id_seq;
+       public          postgres    false    237            \           0    0    tbl_disposal_mea_request_id_seq    SEQUENCE OWNED BY     c   ALTER SEQUENCE public.tbl_disposal_mea_request_id_seq OWNED BY public.tbl_disposal_mea_request.id;
+          public          postgres    false    236            Ë            1259    16394    tbl_outside_code    TABLE     †   CREATE TABLE public.tbl_outside_code (
+    id integer NOT NULL,
+    code character varying(10),
+    location character varying(30)
+);
+ $   DROP TABLE public.tbl_outside_code;
+       public         heap    postgres    false            Ì            1259    16397    tbl_outside_code_id_seq    SEQUENCE        CREATE SEQUENCE public.tbl_outside_code_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ .   DROP SEQUENCE public.tbl_outside_code_id_seq;
+       public          postgres    false    203            ]           0    0    tbl_outside_code_id_seq    SEQUENCE OWNED BY     S   ALTER SEQUENCE public.tbl_outside_code_id_seq OWNED BY public.tbl_outside_code.id;
+          public          postgres    false    204            Í            1259    16399    tbl_picture    TABLE     ë  CREATE TABLE public.tbl_picture (
+    picture_id integer NOT NULL,
+    id_total integer NOT NULL,
+    picture1 character varying(500),
+    picture2 character varying(500),
+    picture3 character varying(500),
+    picture4 character varying(500),
+    picture5 character varying(500),
+    picture6 character varying(500),
+    picture7 character varying(500),
+    picture8 character varying(500),
+    picture9 character varying(500),
+    picture10 character varying(500),
+    picture11 character varying(500),
+    picture12 character varying(500),
+    picture13 character varying(500),
+    picture14 character varying(500),
+    picture15 character varying(500),
+    picture16 character varying(500),
+    picture17 character varying(500),
+    picture18 character varying(500),
+    picture19 character varying(500),
+    picture20 character varying(500),
+    picture21 character varying(500),
+    picture22 character varying(500),
+    picture23 character varying(500),
+    picture24 character varying(500)
+);
+    DROP TABLE public.tbl_picture;
+       public         heap    postgres    false            Î            1259    16405    tbl_picture_picture_id_seq    SEQUENCE     ’   CREATE SEQUENCE public.tbl_picture_picture_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 1   DROP SEQUENCE public.tbl_picture_picture_id_seq;
+       public          postgres    false    205            ^           0    0    tbl_picture_picture_id_seq    SEQUENCE OWNED BY     Y   ALTER SEQUENCE public.tbl_picture_picture_id_seq OWNED BY public.tbl_picture.picture_id;
+          public          postgres    false    206            Ï            1259    16407 	   tbl_total    TABLE     ª  CREATE TABLE public.tbl_total (
+    total_id integer NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    sub_asset_no integer NOT NULL,
+    asset_nm character varying(5000) NOT NULL,
+    admi_acct_nm character varying(5000) NOT NULL,
+    cost_center character varying(5000) NOT NULL,
+    cost_center_name character varying(5000) NOT NULL,
+    location_nm character varying(5000) NOT NULL,
+    kind_cd integer NOT NULL,
+    kind_nm character varying(5000) NOT NULL,
+    class_cd character varying(5000) NOT NULL,
+    class_nm character varying(5000) NOT NULL,
+    acq_date character varying(5000) NOT NULL,
+    ope_date character varying(5000) NOT NULL,
+    acq_val_comp double precision NOT NULL,
+    nbv double precision NOT NULL,
+    supplier_name character varying(5000),
+    capital_budget_code character varying(5000),
+    note1 character varying(5000),
+    note2 character varying(5000),
+    invoice_no character varying(5000),
+    die_no character varying(5000),
+    process character varying(5000),
+    name_old_fa character varying(5000),
+    mgrmea character varying(500),
+    mgrdept character varying(500),
+    request_status character varying(5000),
+    request_note character varying(5000),
+    created_by character varying(50),
+    picdept character varying(500),
+    picmea character varying(500),
+    updated_by character varying(50),
+    updated_acq_val_comp double precision,
+    updated_cost_center character varying(500),
+    updated_asset_nm character varying(500),
+    updated_class_cd character varying(500),
+    updated_date date,
+    created_date date,
+    cds_no character varying,
+    cds_location character varying,
+    updated_capital_budget_code character varying
+);
+    DROP TABLE public.tbl_total;
+       public         heap    postgres    false            ó            1259    25489    tbl_total_history    TABLE     ²  CREATE TABLE public.tbl_total_history (
+    total_id integer NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    sub_asset_no integer NOT NULL,
+    asset_nm character varying(5000) NOT NULL,
+    admi_acct_nm character varying(5000) NOT NULL,
+    cost_center character varying(5000) NOT NULL,
+    cost_center_name character varying(5000) NOT NULL,
+    location_nm character varying(5000) NOT NULL,
+    kind_cd integer NOT NULL,
+    kind_nm character varying(5000) NOT NULL,
+    class_cd character varying(5000) NOT NULL,
+    class_nm character varying(5000) NOT NULL,
+    acq_date character varying(5000) NOT NULL,
+    ope_date character varying(5000) NOT NULL,
+    acq_val_comp double precision NOT NULL,
+    nbv double precision NOT NULL,
+    supplier_name character varying(5000),
+    capital_budget_code character varying(5000),
+    note1 character varying(5000),
+    note2 character varying(5000),
+    invoice_no character varying(5000),
+    die_no character varying(5000),
+    process character varying(5000),
+    name_old_fa character varying(5000),
+    mgrmea character varying(500),
+    mgrdept character varying(500),
+    request_status character varying(5000),
+    request_note character varying(5000),
+    created_by character varying(50),
+    picdept character varying(500),
+    picmea character varying(500),
+    updated_by character varying(50),
+    updated_acq_val_comp double precision,
+    updated_cost_center character varying(500),
+    updated_asset_nm character varying(500),
+    updated_class_cd character varying(500),
+    created_date date,
+    updated_date date,
+    cds_no character varying,
+    cds_location character varying,
+    updated_capital_budget_code character varying
+);
+ %   DROP TABLE public.tbl_total_history;
+       public         heap    postgres    false            ò            1259    25487    tbl_total_history_total_id_seq    SEQUENCE     –   CREATE SEQUENCE public.tbl_total_history_total_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 5   DROP SEQUENCE public.tbl_total_history_total_id_seq;
+       public          postgres    false    243            _           0    0    tbl_total_history_total_id_seq    SEQUENCE OWNED BY     a   ALTER SEQUENCE public.tbl_total_history_total_id_seq OWNED BY public.tbl_total_history.total_id;
+          public          postgres    false    242            Ð            1259    16413    tbl_total_total_id_seq    SEQUENCE     Ž   CREATE SEQUENCE public.tbl_total_total_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ -   DROP SEQUENCE public.tbl_total_total_id_seq;
+       public          postgres    false    207            `           0    0    tbl_total_total_id_seq    SEQUENCE OWNED BY     Q   ALTER SEQUENCE public.tbl_total_total_id_seq OWNED BY public.tbl_total.total_id;
+          public          postgres    false    208            Ú            1259    16691    tbl_transfer    TABLE       CREATE TABLE public.tbl_transfer (
+    id integer NOT NULL,
+    transfer_no character varying(500) NOT NULL,
+    type_transfer character varying(50) NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    reason_transfer character varying(1000) NOT NULL,
+    old_cost_center character varying(50) NOT NULL,
+    new_cost_center character varying(50) NOT NULL,
+    created_by character varying(50) NOT NULL,
+    final_status boolean,
+    actual_date date,
+    date_create date,
+    transferring_date date NOT NULL,
+    tf_actual boolean
+);
+     DROP TABLE public.tbl_transfer;
+       public         heap    postgres    false            ã            1259    24925 
+   tbl_transfer2    TABLE     C  CREATE TABLE public.tbl_transfer2 (
+    id integer NOT NULL,
+    transfer_no character varying(500) NOT NULL,
+    type_transfer character varying(50) NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    reason_transfer character varying(1000) NOT NULL,
+    old_cost_center character varying(50) NOT NULL,
+    new_cost_center character varying(50) NOT NULL,
+    created_by character varying(50) NOT NULL,
+    final_status boolean,
+    actual_date date,
+    date_create date,
+    transferring_date date NOT NULL,
+    active boolean,
+    attachment character varying(500)
+);
+ !   DROP TABLE public.tbl_transfer2;
+       public         heap    postgres    false            â            1259    24923    tbl_transfer2_id_seq    SEQUENCE     Œ   CREATE SEQUENCE public.tbl_transfer2_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ +   DROP SEQUENCE public.tbl_transfer2_id_seq;
+       public          postgres    false    227            a           0    0    tbl_transfer2_id_seq    SEQUENCE OWNED BY     M   ALTER SEQUENCE public.tbl_transfer2_id_seq OWNED BY public.tbl_transfer2.id;
+          public          postgres    false    226            Ü            1259    16722    tbl_transfer_detail    TABLE     y  CREATE TABLE public.tbl_transfer_detail (
+    id integer NOT NULL,
+    transfer_no character varying(50) NOT NULL,
+    cost_center character varying(50) NOT NULL,
+    employee_code character varying(50) NOT NULL,
+    grade character varying(500) NOT NULL,
+    status boolean,
+    date_confirm date,
+    resson_confirm character varying(1000),
+    note character varying(10)
+);
+ '   DROP TABLE public.tbl_transfer_detail;
+       public         heap    postgres    false            å            1259    24936    tbl_transfer_detail2    TABLE     Ž  CREATE TABLE public.tbl_transfer_detail2 (
+    id integer NOT NULL,
+    transfer_no character varying(50) NOT NULL,
+    cost_center character varying(50) NOT NULL,
+    employee_code character varying(50) NOT NULL,
+    grade character varying(500) NOT NULL,
+    status boolean,
+    date_confirm date,
+    resson_confirm character varying(1000),
+    note character varying(10),
+    active boolean
+);
+ (   DROP TABLE public.tbl_transfer_detail2;
+       public         heap    postgres    false            ä            1259    24934    tbl_transfer_detail2_id_seq    SEQUENCE     “   CREATE SEQUENCE public.tbl_transfer_detail2_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 2   DROP SEQUENCE public.tbl_transfer_detail2_id_seq;
+       public          postgres    false    229            b           0    0    tbl_transfer_detail2_id_seq    SEQUENCE OWNED BY     [   ALTER SEQUENCE public.tbl_transfer_detail2_id_seq OWNED BY public.tbl_transfer_detail2.id;
+          public          postgres    false    228            Þ            1259    24774    tbl_transfer_detail_history    TABLE     T  CREATE TABLE public.tbl_transfer_detail_history (
+    id integer,
+    transfer_no character varying(50),
+    cost_center character varying(50),
+    employee_code character varying(50),
+    grade character varying(500),
+    status boolean,
+    date_confirm date,
+    resson_confirm character varying(1000),
+    note character varying(10)
+);
+ /   DROP TABLE public.tbl_transfer_detail_history;
+       public         heap    postgres    false            æ            1259    24945    tbl_transfer_detail_history2    TABLE     i  CREATE TABLE public.tbl_transfer_detail_history2 (
+    id integer,
+    transfer_no character varying(50),
+    cost_center character varying(50),
+    employee_code character varying(50),
+    grade character varying(500),
+    status boolean,
+    date_confirm date,
+    resson_confirm character varying(1000),
+    note character varying(10),
+    active boolean
+);
+ 0   DROP TABLE public.tbl_transfer_detail_history2;
+       public         heap    postgres    false            Û            1259    16720    tbl_transfer_detail_id_seq    SEQUENCE     ’   CREATE SEQUENCE public.tbl_transfer_detail_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ 1   DROP SEQUENCE public.tbl_transfer_detail_id_seq;
+       public          postgres    false    220            c           0    0    tbl_transfer_detail_id_seq    SEQUENCE OWNED BY     Y   ALTER SEQUENCE public.tbl_transfer_detail_id_seq OWNED BY public.tbl_transfer_detail.id;
+          public          postgres    false    219            Ý            1259    24768    tbl_transfer_history    TABLE     Õ  CREATE TABLE public.tbl_transfer_history (
+    id integer,
+    transfer_no character varying(500),
+    type_transfer character varying(50),
+    asset_no character varying(500),
+    reason_transfer character varying(1000),
+    old_cost_center character varying(50),
+    new_cost_center character varying(50),
+    created_by character varying(50),
+    final_status boolean,
+    actual_date date,
+    date_create date,
+    transferring_date date,
+    tf_actual boolean
+);
+ (   DROP TABLE public.tbl_transfer_history;
+       public         heap    postgres    false            ç            1259    24951    tbl_transfer_history2    TABLE     ú  CREATE TABLE public.tbl_transfer_history2 (
+    id integer,
+    transfer_no character varying(500),
+    type_transfer character varying(50),
+    asset_no character varying(500),
+    reason_transfer character varying(1000),
+    old_cost_center character varying(50),
+    new_cost_center character varying(50),
+    created_by character varying(50),
+    final_status boolean,
+    actual_date date,
+    date_create date,
+    transferring_date date,
+    active boolean,
+    attachment character varying(500)
+);
+ )   DROP TABLE public.tbl_transfer_history2;
+       public         heap    postgres    false            Ù            1259    16689    tbl_transfer_id_seq    SEQUENCE     ‹   CREATE SEQUENCE public.tbl_transfer_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ *   DROP SEQUENCE public.tbl_transfer_id_seq;
+       public          postgres    false    218            d           0    0    tbl_transfer_id_seq    SEQUENCE OWNED BY     K   ALTER SEQUENCE public.tbl_transfer_id_seq OWNED BY public.tbl_transfer.id;
+          public          postgres    false    217            ë            1259    24970    tbl_transfer_waiting    TABLE     v  CREATE TABLE public.tbl_transfer_waiting (
+    id integer NOT NULL,
+    asset_no character varying(500) NOT NULL,
+    type_transfer character varying(50) NOT NULL,
+    reason_transfer character varying(1000) NOT NULL,
+    old_cost_center character varying(50) NOT NULL,
+    new_cost_center character varying(50) NOT NULL,
+    actual_date date,
+    transferring_date date
+);
+ (   DROP TABLE public.tbl_transfer_waiting;
+       public         heap    postgres    false            Ò            1259    16446    tbl_user    TABLE     ¹  CREATE TABLE public.tbl_user (
+    id integer NOT NULL,
+    first_name character varying(50),
+    last_name character varying(50),
+    employee_code character varying(20),
+    email character varying(128),
+    password character varying(128),
+    department character varying(100),
+    factory character varying(30),
+    date_change_pass timestamp without time zone,
+    cost_center character varying(50),
+    grade character varying(50)
+);
+    DROP TABLE public.tbl_user;
+       public         heap    postgres    false            Ñ            1259    16444    tbl_user_id_seq    SEQUENCE     ‡   CREATE SEQUENCE public.tbl_user_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ &   DROP SEQUENCE public.tbl_user_id_seq;
+       public          postgres    false    210            e           0    0    tbl_user_id_seq    SEQUENCE OWNED BY     C   ALTER SEQUENCE public.tbl_user_id_seq OWNED BY public.tbl_user.id;
+          public          postgres    false    209            ê            1259    24968    tbl_waiting_id_seq    SEQUENCE     Š   CREATE SEQUENCE public.tbl_waiting_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ )   DROP SEQUENCE public.tbl_waiting_id_seq;
+       public          postgres    false    235            f           0    0    tbl_waiting_id_seq    SEQUENCE OWNED BY     R   ALTER SEQUENCE public.tbl_waiting_id_seq OWNED BY public.tbl_transfer_waiting.id;
+          public          postgres    false    234            z           2604    26746    pga_exception jexid    DEFAULT     |   ALTER TABLE ONLY pgagent.pga_exception ALTER COLUMN jexid SET DEFAULT nextval('pgagent.pga_exception_jexid_seq'::regclass);
+ C   ALTER TABLE pgagent.pga_exception ALTER COLUMN jexid DROP DEFAULT;
+       pgagent          postgres    false    254    253    254            \           2604    26664 
+   pga_job jobid    DEFAULT     p   ALTER TABLE ONLY pgagent.pga_job ALTER COLUMN jobid SET DEFAULT nextval('pgagent.pga_job_jobid_seq'::regclass);
+ =   ALTER TABLE pgagent.pga_job ALTER COLUMN jobid DROP DEFAULT;
+       pgagent          postgres    false    248    247    248            [           2604    26652    pga_jobclass jclid    DEFAULT     z   ALTER TABLE ONLY pgagent.pga_jobclass ALTER COLUMN jclid SET DEFAULT nextval('pgagent.pga_jobclass_jclid_seq'::regclass);
+ B   ALTER TABLE pgagent.pga_jobclass ALTER COLUMN jclid DROP DEFAULT;
+       pgagent          postgres    false    245    246    246            {           2604    26761    pga_joblog jlgid    DEFAULT     v   ALTER TABLE ONLY pgagent.pga_joblog ALTER COLUMN jlgid SET DEFAULT nextval('pgagent.pga_joblog_jlgid_seq'::regclass);
+ @   ALTER TABLE pgagent.pga_joblog ALTER COLUMN jlgid DROP DEFAULT;
+       pgagent          postgres    false    256    255    256            b           2604    26690    pga_jobstep jstid    DEFAULT     x   ALTER TABLE ONLY pgagent.pga_jobstep ALTER COLUMN jstid SET DEFAULT nextval('pgagent.pga_jobstep_jstid_seq'::regclass);
+ A   ALTER TABLE pgagent.pga_jobstep ALTER COLUMN jstid DROP DEFAULT;
+       pgagent          postgres    false    250    249    250                       2604    26778    pga_jobsteplog jslid    DEFAULT     ~   ALTER TABLE ONLY pgagent.pga_jobsteplog ALTER COLUMN jslid SET DEFAULT nextval('pgagent.pga_jobsteplog_jslid_seq'::regclass);
+ D   ALTER TABLE pgagent.pga_jobsteplog ALTER COLUMN jslid DROP DEFAULT;
+       pgagent          postgres    false    258    257    258            m           2604    26716    pga_schedule jscid    DEFAULT     z   ALTER TABLE ONLY pgagent.pga_schedule ALTER COLUMN jscid SET DEFAULT nextval('pgagent.pga_schedule_jscid_seq'::regclass);
+ B   ALTER TABLE pgagent.pga_schedule ALTER COLUMN jscid DROP DEFAULT;
+       pgagent          postgres    false    252    251    252            N           2604    16686    tbl_approve_details id    DEFAULT     €   ALTER TABLE ONLY public.tbl_approve_details ALTER COLUMN id SET DEFAULT nextval('public.tbl_approve_details_id_seq'::regclass);
+ E   ALTER TABLE public.tbl_approve_details ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    215    216    216            M           2604    16678    tbl_approve_process id    DEFAULT     €   ALTER TABLE ONLY public.tbl_approve_process ALTER COLUMN id SET DEFAULT nextval('public.tbl_approve_process_id_seq'::regclass);
+ E   ALTER TABLE public.tbl_approve_process ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    214    213    214            L           2604    16552    tbl_cost_center id    DEFAULT     t   ALTER TABLE ONLY public.tbl_cost_center ALTER COLUMN id SET DEFAULT nextval('public.cost_center_id_seq'::regclass);
+ A   ALTER TABLE public.tbl_cost_center ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    211    212    212            Q           2604    24803    tbl_demo_treatment id    DEFAULT     ~   ALTER TABLE ONLY public.tbl_demo_treatment ALTER COLUMN id SET DEFAULT nextval('public.tbl_demo_treatment_id_seq'::regclass);
+ D   ALTER TABLE public.tbl_demo_treatment ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    224    223    224            X           2604    25456    tbl_disposal_deleted total_id    DEFAULT     Ž   ALTER TABLE ONLY public.tbl_disposal_deleted ALTER COLUMN total_id SET DEFAULT nextval('public.tbl_disposal_deleted_total_id_seq'::regclass);
+ L   ALTER TABLE public.tbl_disposal_deleted ALTER COLUMN total_id DROP DEFAULT;
+       public          postgres    false    241    240    241            T           2604    24962    tbl_disposal_dept_request id    DEFAULT     Œ   ALTER TABLE ONLY public.tbl_disposal_dept_request ALTER COLUMN id SET DEFAULT nextval('public.tbl_disposal_dept_request_id_seq'::regclass);
+ K   ALTER TABLE public.tbl_disposal_dept_request ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    233    232    233            W           2604    25444    tbl_disposal_mea_actual id    DEFAULT     ˆ   ALTER TABLE ONLY public.tbl_disposal_mea_actual ALTER COLUMN id SET DEFAULT nextval('public.tbl_disposal_mea_actual_id_seq'::regclass);
+ I   ALTER TABLE public.tbl_disposal_mea_actual ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    239    238    239            V           2604    25033    tbl_disposal_mea_request id    DEFAULT     Š   ALTER TABLE ONLY public.tbl_disposal_mea_request ALTER COLUMN id SET DEFAULT nextval('public.tbl_disposal_mea_request_id_seq'::regclass);
+ J   ALTER TABLE public.tbl_disposal_mea_request ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    236    237    237            H           2604    16420    tbl_outside_code id    DEFAULT     z   ALTER TABLE ONLY public.tbl_outside_code ALTER COLUMN id SET DEFAULT nextval('public.tbl_outside_code_id_seq'::regclass);
+ B   ALTER TABLE public.tbl_outside_code ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    204    203            I           2604    16421    tbl_picture picture_id    DEFAULT     €   ALTER TABLE ONLY public.tbl_picture ALTER COLUMN picture_id SET DEFAULT nextval('public.tbl_picture_picture_id_seq'::regclass);
+ E   ALTER TABLE public.tbl_picture ALTER COLUMN picture_id DROP DEFAULT;
+       public          postgres    false    206    205            J           2604    16422    tbl_total total_id    DEFAULT     x   ALTER TABLE ONLY public.tbl_total ALTER COLUMN total_id SET DEFAULT nextval('public.tbl_total_total_id_seq'::regclass);
+ A   ALTER TABLE public.tbl_total ALTER COLUMN total_id DROP DEFAULT;
+       public          postgres    false    208    207            Y           2604    25492    tbl_total_history total_id    DEFAULT     ˆ   ALTER TABLE ONLY public.tbl_total_history ALTER COLUMN total_id SET DEFAULT nextval('public.tbl_total_history_total_id_seq'::regclass);
+ I   ALTER TABLE public.tbl_total_history ALTER COLUMN total_id DROP DEFAULT;
+       public          postgres    false    243    242    243            O           2604    16694    tbl_transfer id    DEFAULT     r   ALTER TABLE ONLY public.tbl_transfer ALTER COLUMN id SET DEFAULT nextval('public.tbl_transfer_id_seq'::regclass);
+ >   ALTER TABLE public.tbl_transfer ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    218    217    218            R           2604    24928    tbl_transfer2 id    DEFAULT     t   ALTER TABLE ONLY public.tbl_transfer2 ALTER COLUMN id SET DEFAULT nextval('public.tbl_transfer2_id_seq'::regclass);
+ ?   ALTER TABLE public.tbl_transfer2 ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    226    227    227            P           2604    16725    tbl_transfer_detail id    DEFAULT     €   ALTER TABLE ONLY public.tbl_transfer_detail ALTER COLUMN id SET DEFAULT nextval('public.tbl_transfer_detail_id_seq'::regclass);
+ E   ALTER TABLE public.tbl_transfer_detail ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    220    219    220            S           2604    24939    tbl_transfer_detail2 id    DEFAULT     ‚   ALTER TABLE ONLY public.tbl_transfer_detail2 ALTER COLUMN id SET DEFAULT nextval('public.tbl_transfer_detail2_id_seq'::regclass);
+ F   ALTER TABLE public.tbl_transfer_detail2 ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    228    229    229            U           2604    24973    tbl_transfer_waiting id    DEFAULT     y   ALTER TABLE ONLY public.tbl_transfer_waiting ALTER COLUMN id SET DEFAULT nextval('public.tbl_waiting_id_seq'::regclass);
+ F   ALTER TABLE public.tbl_transfer_waiting ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    235    234    235            K           2604    16449    tbl_user id    DEFAULT     j   ALTER TABLE ONLY public.tbl_user ALTER COLUMN id SET DEFAULT nextval('public.tbl_user_id_seq'::regclass);
+ :   ALTER TABLE public.tbl_user ALTER COLUMN id DROP DEFAULT;
+       public          postgres    false    209    210    210            ¸           2606    26748     pga_exception pga_exception_pkey 
+   CONSTRAINT     b   ALTER TABLE ONLY pgagent.pga_exception
+    ADD CONSTRAINT pga_exception_pkey PRIMARY KEY (jexid);
+ K   ALTER TABLE ONLY pgagent.pga_exception DROP CONSTRAINT pga_exception_pkey;
+       pgagent            postgres    false    254            ®           2606    26674    pga_job pga_job_pkey 
+   CONSTRAINT     V   ALTER TABLE ONLY pgagent.pga_job
+    ADD CONSTRAINT pga_job_pkey PRIMARY KEY (jobid);
+ ?   ALTER TABLE ONLY pgagent.pga_job DROP CONSTRAINT pga_job_pkey;
+       pgagent            postgres    false    248            ©           2606    26646    pga_jobagent pga_jobagent_pkey 
+   CONSTRAINT     a   ALTER TABLE ONLY pgagent.pga_jobagent
+    ADD CONSTRAINT pga_jobagent_pkey PRIMARY KEY (jagpid);
+ I   ALTER TABLE ONLY pgagent.pga_jobagent DROP CONSTRAINT pga_jobagent_pkey;
+       pgagent            postgres    false    244            ¬           2606    26657    pga_jobclass pga_jobclass_pkey 
+   CONSTRAINT     `   ALTER TABLE ONLY pgagent.pga_jobclass
+    ADD CONSTRAINT pga_jobclass_pkey PRIMARY KEY (jclid);
+ I   ALTER TABLE ONLY pgagent.pga_jobclass DROP CONSTRAINT pga_jobclass_pkey;
+       pgagent            postgres    false    246            »           2606    26766    pga_joblog pga_joblog_pkey 
+   CONSTRAINT     \   ALTER TABLE ONLY pgagent.pga_joblog
+    ADD CONSTRAINT pga_joblog_pkey PRIMARY KEY (jlgid);
+ E   ALTER TABLE ONLY pgagent.pga_joblog DROP CONSTRAINT pga_joblog_pkey;
+       pgagent            postgres    false    256            ±           2606    26704    pga_jobstep pga_jobstep_pkey 
+   CONSTRAINT     ^   ALTER TABLE ONLY pgagent.pga_jobstep
+    ADD CONSTRAINT pga_jobstep_pkey PRIMARY KEY (jstid);
+ G   ALTER TABLE ONLY pgagent.pga_jobstep DROP CONSTRAINT pga_jobstep_pkey;
+       pgagent            postgres    false    250            ¾           2606    26786 "   pga_jobsteplog pga_jobsteplog_pkey 
+   CONSTRAINT     d   ALTER TABLE ONLY pgagent.pga_jobsteplog
+    ADD CONSTRAINT pga_jobsteplog_pkey PRIMARY KEY (jslid);
+ M   ALTER TABLE ONLY pgagent.pga_jobsteplog DROP CONSTRAINT pga_jobsteplog_pkey;
+       pgagent            postgres    false    258            ´           2606    26734    pga_schedule pga_schedule_pkey 
+   CONSTRAINT     `   ALTER TABLE ONLY pgagent.pga_schedule
+    ADD CONSTRAINT pga_schedule_pkey PRIMARY KEY (jscid);
+ I   ALTER TABLE ONLY pgagent.pga_schedule DROP CONSTRAINT pga_schedule_pkey;
+       pgagent            postgres    false    252                       2606    16557     tbl_cost_center cost_center_pkey 
+   CONSTRAINT     ^   ALTER TABLE ONLY public.tbl_cost_center
+    ADD CONSTRAINT cost_center_pkey PRIMARY KEY (id);
+ J   ALTER TABLE ONLY public.tbl_cost_center DROP CONSTRAINT cost_center_pkey;
+       public            postgres    false    212            ‘           2606    16688 ,   tbl_approve_details tbl_approve_details_pkey 
+   CONSTRAINT     j   ALTER TABLE ONLY public.tbl_approve_details
+    ADD CONSTRAINT tbl_approve_details_pkey PRIMARY KEY (id);
+ V   ALTER TABLE ONLY public.tbl_approve_details DROP CONSTRAINT tbl_approve_details_pkey;
+       public            postgres    false    216                       2606    16680 ,   tbl_approve_process tbl_approve_process_pkey 
+   CONSTRAINT     j   ALTER TABLE ONLY public.tbl_approve_process
+    ADD CONSTRAINT tbl_approve_process_pkey PRIMARY KEY (id);
+ V   ALTER TABLE ONLY public.tbl_approve_process DROP CONSTRAINT tbl_approve_process_pkey;
+       public            postgres    false    214            —           2606    24808 *   tbl_demo_treatment tbl_demo_treatment_pkey 
+   CONSTRAINT     h   ALTER TABLE ONLY public.tbl_demo_treatment
+    ADD CONSTRAINT tbl_demo_treatment_pkey PRIMARY KEY (id);
+ T   ALTER TABLE ONLY public.tbl_demo_treatment DROP CONSTRAINT tbl_demo_treatment_pkey;
+       public            postgres    false    224            ¥           2606    25461 .   tbl_disposal_deleted tbl_disposal_deleted_pkey 
+   CONSTRAINT     r   ALTER TABLE ONLY public.tbl_disposal_deleted
+    ADD CONSTRAINT tbl_disposal_deleted_pkey PRIMARY KEY (total_id);
+ X   ALTER TABLE ONLY public.tbl_disposal_deleted DROP CONSTRAINT tbl_disposal_deleted_pkey;
+       public            postgres    false    241                       2606    24967 8   tbl_disposal_dept_request tbl_disposal_dept_request_pkey 
+   CONSTRAINT     v   ALTER TABLE ONLY public.tbl_disposal_dept_request
+    ADD CONSTRAINT tbl_disposal_dept_request_pkey PRIMARY KEY (id);
+ b   ALTER TABLE ONLY public.tbl_disposal_dept_request DROP CONSTRAINT tbl_disposal_dept_request_pkey;
+       public            postgres    false    233            £           2606    25449 2   tbl_disposal_mea_actual tbl_disposal_mea_actual_id 
+   CONSTRAINT     p   ALTER TABLE ONLY public.tbl_disposal_mea_actual
+    ADD CONSTRAINT tbl_disposal_mea_actual_id PRIMARY KEY (id);
+ \   ALTER TABLE ONLY public.tbl_disposal_mea_actual DROP CONSTRAINT tbl_disposal_mea_actual_id;
+       public            postgres    false    239            ¡           2606    25038 6   tbl_disposal_mea_request tbl_disposal_mea_request_pkey 
+   CONSTRAINT     t   ALTER TABLE ONLY public.tbl_disposal_mea_request
+    ADD CONSTRAINT tbl_disposal_mea_request_pkey PRIMARY KEY (id);
+ `   ALTER TABLE ONLY public.tbl_disposal_mea_request DROP CONSTRAINT tbl_disposal_mea_request_pkey;
+       public            postgres    false    237            „           2606    16425 &   tbl_outside_code tbl_outside_code_pkey 
+   CONSTRAINT     d   ALTER TABLE ONLY public.tbl_outside_code
+    ADD CONSTRAINT tbl_outside_code_pkey PRIMARY KEY (id);
+ P   ALTER TABLE ONLY public.tbl_outside_code DROP CONSTRAINT tbl_outside_code_pkey;
+       public            postgres    false    203            §           2606    25497 (   tbl_total_history tbl_total_history_pkey 
+   CONSTRAINT     l   ALTER TABLE ONLY public.tbl_total_history
+    ADD CONSTRAINT tbl_total_history_pkey PRIMARY KEY (total_id);
+ R   ALTER TABLE ONLY public.tbl_total_history DROP CONSTRAINT tbl_total_history_pkey;
+       public            postgres    false    243            ‰           2606    16427    tbl_total tbl_total_pkey 
+   CONSTRAINT     \   ALTER TABLE ONLY public.tbl_total
+    ADD CONSTRAINT tbl_total_pkey PRIMARY KEY (total_id);
+ B   ALTER TABLE ONLY public.tbl_total DROP CONSTRAINT tbl_total_pkey;
+       public            postgres    false    207            ›           2606    24944 .   tbl_transfer_detail2 tbl_transfer_detail2_pkey 
+   CONSTRAINT     l   ALTER TABLE ONLY public.tbl_transfer_detail2
+    ADD CONSTRAINT tbl_transfer_detail2_pkey PRIMARY KEY (id);
+ X   ALTER TABLE ONLY public.tbl_transfer_detail2 DROP CONSTRAINT tbl_transfer_detail2_pkey;
+       public            postgres    false    229            •           2606    16730 ,   tbl_transfer_detail tbl_transfer_detail_pkey 
+   CONSTRAINT     j   ALTER TABLE ONLY public.tbl_transfer_detail
+    ADD CONSTRAINT tbl_transfer_detail_pkey PRIMARY KEY (id);
+ V   ALTER TABLE ONLY public.tbl_transfer_detail DROP CONSTRAINT tbl_transfer_detail_pkey;
+       public            postgres    false    220            ‹           2606    16454    tbl_user tbl_user_pkey 
+   CONSTRAINT     T   ALTER TABLE ONLY public.tbl_user
+    ADD CONSTRAINT tbl_user_pkey PRIMARY KEY (id);
+ @   ALTER TABLE ONLY public.tbl_user DROP CONSTRAINT tbl_user_pkey;
+       public            postgres    false    210            Ÿ           2606    24978 %   tbl_transfer_waiting tbl_waiting_pkey 
+   CONSTRAINT     c   ALTER TABLE ONLY public.tbl_transfer_waiting
+    ADD CONSTRAINT tbl_waiting_pkey PRIMARY KEY (id);
+ O   ALTER TABLE ONLY public.tbl_transfer_waiting DROP CONSTRAINT tbl_waiting_pkey;
+       public            postgres    false    235            ™           2606    24933    tbl_transfer2 transfer2_pkey 
+   CONSTRAINT     Z   ALTER TABLE ONLY public.tbl_transfer2
+    ADD CONSTRAINT transfer2_pkey PRIMARY KEY (id);
+ F   ALTER TABLE ONLY public.tbl_transfer2 DROP CONSTRAINT transfer2_pkey;
+       public            postgres    false    227            “           2606    16699    tbl_transfer transfer_pkey 
+   CONSTRAINT     X   ALTER TABLE ONLY public.tbl_transfer
+    ADD CONSTRAINT transfer_pkey PRIMARY KEY (id);
+ D   ALTER TABLE ONLY public.tbl_transfer DROP CONSTRAINT transfer_pkey;
+       public            postgres    false    218            µ           1259    26755    pga_exception_datetime    INDEX     d   CREATE UNIQUE INDEX pga_exception_datetime ON pgagent.pga_exception USING btree (jexdate, jextime);
+ +   DROP INDEX pgagent.pga_exception_datetime;
+       pgagent            postgres    false    254    254            ¶           1259    26754    pga_exception_jexscid    INDEX     S   CREATE INDEX pga_exception_jexscid ON pgagent.pga_exception USING btree (jexscid);
+ *   DROP INDEX pgagent.pga_exception_jexscid;
+       pgagent            postgres    false    254            ª           1259    26658    pga_jobclass_name    INDEX     U   CREATE UNIQUE INDEX pga_jobclass_name ON pgagent.pga_jobclass USING btree (jclname);
+ &   DROP INDEX pgagent.pga_jobclass_name;
+       pgagent            postgres    false    246            ¹           1259    26772    pga_joblog_jobid    INDEX     L   CREATE INDEX pga_joblog_jobid ON pgagent.pga_joblog USING btree (jlgjobid);
+ %   DROP INDEX pgagent.pga_joblog_jobid;
+       pgagent            postgres    false    256            ²           1259    26740    pga_jobschedule_jobid    INDEX     S   CREATE INDEX pga_jobschedule_jobid ON pgagent.pga_schedule USING btree (jscjobid);
+ *   DROP INDEX pgagent.pga_jobschedule_jobid;
+       pgagent            postgres    false    252            ¯           1259    26710    pga_jobstep_jobid    INDEX     N   CREATE INDEX pga_jobstep_jobid ON pgagent.pga_jobstep USING btree (jstjobid);
+ &   DROP INDEX pgagent.pga_jobstep_jobid;
+       pgagent            postgres    false    250            ¼           1259    26797    pga_jobsteplog_jslid    INDEX     T   CREATE INDEX pga_jobsteplog_jslid ON pgagent.pga_jobsteplog USING btree (jsljlgid);
+ )   DROP INDEX pgagent.pga_jobsteplog_jslid;
+       pgagent            postgres    false    258            …           1259    16430    idx_asset_no    INDEX     F   CREATE INDEX idx_asset_no ON public.tbl_total USING btree (asset_no);
+     DROP INDEX public.idx_asset_no;
+       public            postgres    false    207            †           1259    16431    idx_sub_asset_no    INDEX     N   CREATE INDEX idx_sub_asset_no ON public.tbl_total USING btree (sub_asset_no);
+ $   DROP INDEX public.idx_sub_asset_no;
+       public            postgres    false    207            ‡           1259    16432    idx_total_id    INDEX     F   CREATE INDEX idx_total_id ON public.tbl_total USING btree (total_id);
+     DROP INDEX public.idx_total_id;
+       public            postgres    false    207            É           2620    26807 #   pga_exception pga_exception_trigger    TRIGGER     ž   CREATE TRIGGER pga_exception_trigger AFTER INSERT OR DELETE OR UPDATE ON pgagent.pga_exception FOR EACH ROW EXECUTE FUNCTION pgagent.pga_exception_trigger();
+ =   DROP TRIGGER pga_exception_trigger ON pgagent.pga_exception;
+       pgagent          postgres    false    254    264            Ç           2620    26803    pga_job pga_job_trigger    TRIGGER     y   CREATE TRIGGER pga_job_trigger BEFORE UPDATE ON pgagent.pga_job FOR EACH ROW EXECUTE FUNCTION pgagent.pga_job_trigger();
+ 1   DROP TRIGGER pga_job_trigger ON pgagent.pga_job;
+       pgagent          postgres    false    248    262            È           2620    26805 !   pga_schedule pga_schedule_trigger    TRIGGER     ›   CREATE TRIGGER pga_schedule_trigger AFTER INSERT OR DELETE OR UPDATE ON pgagent.pga_schedule FOR EACH ROW EXECUTE FUNCTION pgagent.pga_schedule_trigger();
+ ;   DROP TRIGGER pga_schedule_trigger ON pgagent.pga_schedule;
+       pgagent          postgres    false    252    263            Ã           2606    26749 (   pga_exception pga_exception_jexscid_fkey 
+   FK CONSTRAINT     ¸   ALTER TABLE ONLY pgagent.pga_exception
+    ADD CONSTRAINT pga_exception_jexscid_fkey FOREIGN KEY (jexscid) REFERENCES pgagent.pga_schedule(jscid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ S   ALTER TABLE ONLY pgagent.pga_exception DROP CONSTRAINT pga_exception_jexscid_fkey;
+       pgagent          postgres    false    2996    252    254            À           2606    26680    pga_job pga_job_jobagentid_fkey 
+   FK CONSTRAINT     ´   ALTER TABLE ONLY pgagent.pga_job
+    ADD CONSTRAINT pga_job_jobagentid_fkey FOREIGN KEY (jobagentid) REFERENCES pgagent.pga_jobagent(jagpid) ON UPDATE RESTRICT ON DELETE SET NULL;
+ J   ALTER TABLE ONLY pgagent.pga_job DROP CONSTRAINT pga_job_jobagentid_fkey;
+       pgagent          postgres    false    244    2985    248            ¿           2606    26675    pga_job pga_job_jobjclid_fkey 
+   FK CONSTRAINT     ¯   ALTER TABLE ONLY pgagent.pga_job
+    ADD CONSTRAINT pga_job_jobjclid_fkey FOREIGN KEY (jobjclid) REFERENCES pgagent.pga_jobclass(jclid) ON UPDATE RESTRICT ON DELETE RESTRICT;
+ H   ALTER TABLE ONLY pgagent.pga_job DROP CONSTRAINT pga_job_jobjclid_fkey;
+       pgagent          postgres    false    246    2988    248            Ä           2606    26767 #   pga_joblog pga_joblog_jlgjobid_fkey 
+   FK CONSTRAINT     ¯   ALTER TABLE ONLY pgagent.pga_joblog
+    ADD CONSTRAINT pga_joblog_jlgjobid_fkey FOREIGN KEY (jlgjobid) REFERENCES pgagent.pga_job(jobid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ N   ALTER TABLE ONLY pgagent.pga_joblog DROP CONSTRAINT pga_joblog_jlgjobid_fkey;
+       pgagent          postgres    false    248    256    2990            Á           2606    26705 %   pga_jobstep pga_jobstep_jstjobid_fkey 
+   FK CONSTRAINT     ±   ALTER TABLE ONLY pgagent.pga_jobstep
+    ADD CONSTRAINT pga_jobstep_jstjobid_fkey FOREIGN KEY (jstjobid) REFERENCES pgagent.pga_job(jobid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ P   ALTER TABLE ONLY pgagent.pga_jobstep DROP CONSTRAINT pga_jobstep_jstjobid_fkey;
+       pgagent          postgres    false    2990    250    248            Å           2606    26787 +   pga_jobsteplog pga_jobsteplog_jsljlgid_fkey 
+   FK CONSTRAINT     º   ALTER TABLE ONLY pgagent.pga_jobsteplog
+    ADD CONSTRAINT pga_jobsteplog_jsljlgid_fkey FOREIGN KEY (jsljlgid) REFERENCES pgagent.pga_joblog(jlgid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ V   ALTER TABLE ONLY pgagent.pga_jobsteplog DROP CONSTRAINT pga_jobsteplog_jsljlgid_fkey;
+       pgagent          postgres    false    3003    256    258            Æ           2606    26792 +   pga_jobsteplog pga_jobsteplog_jsljstid_fkey 
+   FK CONSTRAINT     »   ALTER TABLE ONLY pgagent.pga_jobsteplog
+    ADD CONSTRAINT pga_jobsteplog_jsljstid_fkey FOREIGN KEY (jsljstid) REFERENCES pgagent.pga_jobstep(jstid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ V   ALTER TABLE ONLY pgagent.pga_jobsteplog DROP CONSTRAINT pga_jobsteplog_jsljstid_fkey;
+       pgagent          postgres    false    258    250    2993            Â           2606    26735 '   pga_schedule pga_schedule_jscjobid_fkey 
+   FK CONSTRAINT     ³   ALTER TABLE ONLY pgagent.pga_schedule
+    ADD CONSTRAINT pga_schedule_jscjobid_fkey FOREIGN KEY (jscjobid) REFERENCES pgagent.pga_job(jobid) ON UPDATE RESTRICT ON DELETE CASCADE;
+ R   ALTER TABLE ONLY pgagent.pga_schedule DROP CONSTRAINT pga_schedule_jscjobid_fkey;
+       pgagent          postgres    false    252    248    2990           
