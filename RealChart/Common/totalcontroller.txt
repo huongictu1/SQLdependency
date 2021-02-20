@@ -1,0 +1,724 @@
+package org.o7planning.controller;
+
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.o7planning.bean.ExcelReportView;
+import org.o7planning.bean.TotalBean;
+import org.o7planning.lib.ConInterface;
+import org.o7planning.lib.SupportJsonObject;
+import org.o7planning.model.*;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.ui.ModelMap;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.gembox.spreadsheet.ExcelFile;
+import com.gembox.spreadsheet.ExcelRow;
+import com.gembox.spreadsheet.ExcelWorksheet;
+import com.gembox.spreadsheet.RowColumn;
+import com.gembox.spreadsheet.SpreadsheetInfo;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+
+import jxl.Workbook;
+
+import java.awt.Font;
+import java.awt.print.Book;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Random;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.view.document.AbstractXlsView;
+
+import com.gembox.spreadsheet.*;
+@Controller
+public class TotalController implements ConInterface {
+	static Connection conn;
+	static PreparedStatement pst;
+	static ResultSet rs;
+
+	@RequestMapping(value = "/Total", method = RequestMethod.GET)
+	public String printWelcome(@ModelAttribute("total") TotalBean total, BindingResult result, ModelMap model,@RequestParam(required = false,name="msg") String msg,
+			HttpServletRequest request, HttpServletResponse response) {
+		model.addAttribute("msg", msg);
+		String user = (String) request.getSession().getAttribute("username");
+		if(user == null || user == "") {
+			return "redirect:/Login";
+		}
+
+		return "/Total/IndexTotal";
+
+	}
+	
+	@RequestMapping(value = "/springPaginationDataTables", method = RequestMethod.GET, produces = "application/json")
+	public @ResponseBody String springPaginationDataTables(HttpServletRequest request) throws IOException {
+		String fac = (String) request.getSession().getAttribute("factory");
+		String cos = (String) request.getSession().getAttribute("cost_center");
+		// Fetch the page number from client
+		Integer pageNumber = 0;
+		Integer pageDisplayLength = Integer.valueOf(request.getParameter("iDisplayLength"));
+		if (null != request.getParameter("iDisplayStart"))
+
+			pageNumber = (Integer.valueOf(request.getParameter("iDisplayStart")) / pageDisplayLength) + 1;
+
+		// Fetch search parameter
+		String searchParameter = "";
+		searchParameter=request.getParameter("sSearch");
+
+		// Fetch Page display length
+		
+
+		// Create page list data
+		List<TotalBean> ttList = createPaginationData(request.getContextPath(), pageNumber, pageDisplayLength, searchParameter, fac, cos);
+
+
+		SupportJsonObject personJsonObject = new SupportJsonObject();
+		//select total row
+		TotalModel md= new TotalModel();
+		int sum_row=md.getSumRowNews(searchParameter.trim(), fac, cos);
+		
+		// Set Total display record
+		personJsonObject.setiTotalDisplayRecords(sum_row);
+		// Set Total record
+		sum_row=md.getSumRowNews("", fac, cos);
+		personJsonObject.setiTotalRecords(sum_row);
+		personJsonObject.setAaData(ttList);
+
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		String json2 = gson.toJson(personJsonObject);
+
+		return json2;
+	}
+
+
+
+
+
+	private List<TotalBean> createPaginationData(String context, Integer pageNumber, Integer pageDisplayLength,String searchParameter, String fac, String cos) {
+
+		int a = (pageNumber - 1) * pageDisplayLength;
+		List<TotalBean> ttList = new ArrayList<TotalBean>();
+		TotalModel md = new TotalModel();
+
+		ttList = md.getList(context, a, pageDisplayLength, searchParameter.trim(), fac, cos);
+
+		return ttList;
+	}
+	
+	
+
+	@RequestMapping(value = "/uploadExcelFile", method = RequestMethod.GET)
+	public String uploadFile(Model model) throws Exception {
+		return "/Total/Create";
+
+	}
+
+
+	@RequestMapping(value = "/uploadExcelFile", method = RequestMethod.POST)
+	public String processExcel2003(Model model, RedirectAttributes ra,
+			@RequestParam("excelfile2007") MultipartFile excelfile,
+			@RequestParam("username") String username) {
+		int a = 0;
+		try {
+			ArrayList<TotalBean> lstTotal = new ArrayList<TotalBean>();//danh sách total đọc được từ file
+			int i = 1;
+			String sql = "";
+			// Creates a workbook object from the uploaded excelfile
+			XSSFWorkbook workbook = new XSSFWorkbook(excelfile.getInputStream());
+			// Creates a worksheet object representing the first sheet
+			XSSFSheet worksheet = workbook.getSheetAt(0);
+			// Reads the data in excel file until last row is encountered
+			while (i <= worksheet.getLastRowNum()) {
+				// Creates an object for the UserInfo Model
+
+				// Creates an object representing a single row in excel
+				XSSFRow row = worksheet.getRow(i++);
+				// Sets the Read data to the model class
+
+
+				String asset_no = ChangeCellType(checknull(row.getCell(1)), 1, row);
+				String name_old_fa = ChangeCellType(checknull(row.getCell(2)), 2, row);
+				String sub_asset_no = ChangeCellType(checknull(row.getCell(3)), 3, row);
+				String asset_nm = ChangeCellType(checknull(row.getCell(4)), 4, row);
+				String admi_acct_nm = ChangeCellType(checknull(row.getCell(5)), 5, row);
+				String cost_center = ChangeCellType(checknull(row.getCell(6)), 6, row);
+				String cost_center_name = ChangeCellType(checknull(row.getCell(7)), 7, row);
+				String location_nm = ChangeCellType(checknull(row.getCell(8)), 8, row);
+				String kind_cd = ChangeCellType(checknull(row.getCell(9)), 9, row);
+				String kind_nm = ChangeCellType(checknull(row.getCell(10)), 10, row);
+				String class_cd = ChangeCellType(checknull(row.getCell(11)), 11, row);
+				String class_nm = ChangeCellType(checknull(row.getCell(12)), 12, row);
+				String acq_date = ChangeCellType(checknull(row.getCell(13)), 13, row);
+				String ope_date = ChangeCellType(checknull(row.getCell(14)), 14, row);
+				String acq_val_comp = ChangeCellType(checknull(row.getCell(15)), 15, row);
+				String nbv = ChangeCellType(checknull(row.getCell(16)), 16, row);
+				String supplier_name = ChangeCellType(checknull(row.getCell(17)), 17, row);
+				String capital_budget_code = ChangeCellType(checknull(row.getCell(18)), 18, row);
+				String note1 = ChangeCellType(checknull(row.getCell(19)), 19, row);
+				String note2 = ChangeCellType(checknull(row.getCell(20)), 20, row);
+				String invoice_no = ChangeCellType(checknull(row.getCell(21)), 21, row);
+				String die_no = ChangeCellType(checknull(row.getCell(22)), 22, row);
+				String process = ChangeCellType(checknull(row.getCell(23)), 23, row);
+				String cds_no = ChangeCellType(checknull(row.getCell(24)), 24, row);
+				String cds_location = ChangeCellType(checknull(row.getCell(25)), 25, row);
+				
+				int iKind_cd = 0;
+				float fNbv = 0, fAcq_val_comp = 0;
+				if(kind_cd != null || !kind_cd.equals("")) {
+					iKind_cd = Integer.parseInt(kind_cd);
+				}
+				if(nbv != null || !nbv.equals("")) {
+					fNbv = Float.parseFloat(nbv);
+				}
+				if(acq_val_comp != null || !acq_val_comp.equals("")) {
+					fAcq_val_comp = Float.parseFloat(acq_val_comp);
+				}
+				
+				TotalBean item1 = new TotalBean();
+				item1.setAsset_no(asset_no);
+				item1.setAsset_nm(asset_nm);
+				item1.setName_old_fa(name_old_fa);
+				item1.setSub_asset_no(Integer.parseInt(sub_asset_no));
+				item1.setAdmi_acct_nm(admi_acct_nm);
+				item1.setCost_center(cost_center);
+				item1.setCost_center_name(cost_center_name);
+				item1.setLocation_nm(location_nm);
+				item1.setKind_cd(iKind_cd);
+				item1.setKind_nm(kind_nm);
+				item1.setClass_cd(class_cd);
+				item1.setClass_nm(class_nm);
+				item1.setAcq_date(acq_date);
+				item1.setOpe_date(ope_date);
+				item1.setAcq_val_comp(fAcq_val_comp);
+				item1.setNbv(fNbv);
+				item1.setSupplier_name(supplier_name);
+				item1.setCapital_budget_code(capital_budget_code);
+				item1.setNote1(note1);
+				item1.setNote2(note2);
+				item1.setInvoice_no(invoice_no);
+				item1.setDie_no(die_no);
+				item1.setProcess(process);
+				item1.setCds_no(cds_no);
+				item1.setCds_location(cds_location);
+				lstTotal.add(item1);
+				
+				
+			}
+			workbook.close();
+			ArrayList<String> lstQuery = new ArrayList<String>();
+			TotalModel md = new TotalModel();
+			//System.out.println("Doc xong file!" + lstTotal.size() + " " + (new Date().getTime()));
+			if(lstTotal != null && lstTotal.size() > 0) {
+				ArrayList<TotalBean> lstTotalExists = new ArrayList<TotalBean>();//danh sách total dùng để check exists				
+				//trước khi check thì đưa tất cả vào trạng thái tạm thời
+				//nếu asset nào không được check có nghĩa là bị xóa
+				//sẽ xóa sau khi thao tác check update xong
+				md.ThucHienSQL("UPDATE tbl_total set request_status = '0', request_note = 'delete tempp when upfile', updated_date = now(), updated_by = '" + username + "' where request_status = '1'");
+				lstTotalExists = md.CheckListExists(lstTotal);
+				//System.out.println("Doc xong exists!" + lstTotalExists.size() + " " + (new Date().getTime()));
+				for(int j = 0; j < lstTotal.size(); j++) {
+					TotalBean item2 = lstTotal.get(j);
+					String asset_no = item2.getAsset_no();
+					String name_old_fa = item2.getName_old_fa();
+					int sub_asset_no = item2.getSub_asset_no();
+					String asset_nm = item2.getAsset_nm();
+					String admi_acct_nm = item2.getAdmi_acct_nm();
+					String cost_center = item2.getCost_center();
+					String cost_center_name = item2.getCost_center_name();
+					String location_nm = item2.getLocation_nm();
+					int kind_cd = item2.getKind_cd();
+					String kind_nm = item2.getKind_nm();
+					String class_cd = item2.getClass_cd();
+					String class_nm = item2.getClass_nm();
+					String acq_date = item2.getAcq_date();
+					String ope_date = item2.getOpe_date();
+					float acq_val_comp = item2.getAcq_val_comp();
+					float nbv = item2.getNbv();
+					String supplier_name = item2.getSupplier_name();
+					String capital_budget_code = item2.getCapital_budget_code();
+					String note1 = item2.getNote1();
+					String note2 = item2.getNote2();
+					String invoice_no = item2.getInvoice_no();
+					String die_no = item2.getDie_no();
+					String process = item2.getProcess();
+					String cds_no = item2.getCds_no();
+					String cds_location = item2.getCds_location();
+					if(name_old_fa.equals("") || name_old_fa == null) {
+						name_old_fa = asset_no;
+					}
+					
+					String created_by = username;
+					String updated_by = username;
+					
+					
+					
+					TotalBean isExists = lstTotalExists.get(j);
+					//nếu không tồn tại những asset này thì thực hiện thêm mới luôn
+					if(isExists.getTotal_id() == 0) {
+							// insert
+							sql = " INSERT INTO tbl_total ";
+							sql += "  (asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center, cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date, acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no, process, name_old_fa, created_by, created_date, updated_by, updated_date, request_status, request_note, cds_no, cds_location) ";
+							sql += "	VALUES ('" + asset_no + "', '" + sub_asset_no + "', '" + asset_nm + "', '"
+									+ admi_acct_nm + "', '" + cost_center + "', '" + cost_center_name + "', '" + location_nm
+									+ "', " + kind_cd + ", '" + kind_nm + "', '" + class_cd + "', '" + class_nm + "', '"
+									+ acq_date + "', '" + ope_date + "', " + acq_val_comp + ", " + nbv + ", '"
+									+ supplier_name + "', '" + capital_budget_code + "', '" + note1 + "', '" + note2
+									+ "', '" + invoice_no + "', '" + die_no + "', '" + process + "', '" + name_old_fa
+									+ "','" + created_by + "',now(),'" + updated_by + "',now(),'1','Available','" + cds_no + "','" + cds_location + "'); ";
+							//a += md.InsertUpdate(sql);
+							//System.out.println("Da insert " + j);
+							lstQuery.add(sql);
+						
+					}
+					else {
+						int total_id = isExists.getTotal_id();
+						float acq_val_comp_1 = isExists.getAcq_val_comp();
+						String capital_budget_code_1 = isExists.getCapital_budget_code();
+						String cost_center_1 = isExists.getCost_center();
+						String asset_nm_1 = isExists.getAsset_nm();
+						String class_cd_1 = isExists.getClass_cd();
+						String admi_acct_nm_1 = isExists.getAdmi_acct_nm();
+						String cost_center_name_1 = isExists.getCost_center_name();
+						String location_nm_1 = isExists.getLocation_nm();
+						int kind_cd_1 = isExists.getKind_cd();
+						String kind_nm_1 = isExists.getKind_nm();
+						String class_nm_1 = isExists.getClass_nm();
+						float nbv_1 = isExists.getNbv();
+						String die_no_1 = isExists.getDie_no();
+						String process_1 = isExists.getProcess();
+						String cds_no1 = isExists.getCds_no();
+						String cds_location1 = isExists.getCds_location();
+						String history_modify = "";					
+						
+						
+						if(!capital_budget_code.equals(capital_budget_code_1)) {
+							history_modify += "updated_capital_budget_code = '" + capital_budget_code_1 + "',";
+						}
+						if(!cost_center.equals(cost_center_1)) {
+							history_modify += "updated_cost_center = '" + cost_center_1 + "',";
+						}
+						if(!asset_nm.equals(asset_nm_1)) {
+							history_modify += "updated_asset_nm = '" + asset_nm_1 + "',";
+						}
+						if(!class_cd.equals(class_cd_1)) {
+							history_modify += "updated_class_cd = '" + class_cd_1 + "',";
+						}
+						
+						
+						// update
+						sql = " UPDATE tbl_total ";
+						if(history_modify.length() > 10) {
+							history_modify = history_modify.substring(0, history_modify.length() - 1);
+							sql += "	SET asset_nm='" + asset_nm + "', kind_cd=" + kind_cd + ", kind_nm='" + kind_nm
+									+ "', class_cd='" + class_cd + "', class_nm='" + class_nm + "', acq_date='" + acq_date
+									+ "', ope_date='" + ope_date + "', acq_val_comp=" + acq_val_comp + ", nbv=" + nbv
+									+ ", supplier_name='" + supplier_name + "', capital_budget_code='" + capital_budget_code
+									+ "', note1='" + note1 + "', note2='" + note2 + "', invoice_no='" + invoice_no + "', die_no='"
+									+ die_no + "', process='" + process + "', name_old_fa='" + name_old_fa + "', updated_by = '" + updated_by 
+									+ "', updated_date = now(), cost_center = '" + cost_center + "', cost_center_name = '" 
+									+ cost_center_name + "', admi_acct_nm='" + admi_acct_nm + "', location_nm='" 
+									+ location_nm + "', cds_no = '" + cds_no + "', cds_location = '" + cds_location + "', request_status = '1', request_note = 'Available', " + history_modify;
+							//thêm vào bảng history nếu 5 trường bị thay đổi, đồng thời update vào các cột updated
+							String sql_history = "INSERT INTO tbl_total_history(\r\n" + 
+									"	asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center, cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date, acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no, process, name_old_fa, mgrmea, mgrdept, request_status, request_note, created_date, created_by, updated_date, picdept, picmea, updated_by, updated_acq_val_comp, updated_cost_center, updated_asset_nm, updated_class_cd, cds_no, cds_location)\r\n" + 
+									"	select asset_no, sub_asset_no, asset_nm, admi_acct_nm, cost_center, cost_center_name, location_nm, kind_cd, kind_nm, class_cd, class_nm, acq_date, ope_date, acq_val_comp, nbv, supplier_name, capital_budget_code, note1, note2, invoice_no, die_no, process, name_old_fa, mgrmea, mgrdept, request_status, request_note, created_date, created_by, updated_date, picdept, picmea, updated_by, updated_acq_val_comp, updated_cost_center, updated_asset_nm, updated_class_cd, cds_no, cds_location\r\n" + 
+									"	from tbl_total where total_id = '" + total_id + "';";
+							//md.InsertUpdate(sql_history);
+							lstQuery.add(sql_history);
+							//System.out.println("Da insert history " + j);
+							sql += "	WHERE total_id = '" + total_id + "';";
+							//thực hiện update
+							//a += md.InsertUpdate(sql);
+							//System.out.println("Da update 1 " + j);
+							lstQuery.add(sql);
+						}
+						else {
+							if(!admi_acct_nm_1.equals(admi_acct_nm) || 
+									!cost_center_name_1.equals(cost_center_name) ||
+									!location_nm_1.equals(location_nm) ||
+									!kind_nm_1.equals(kind_nm) ||
+									!class_nm_1.equals(class_nm) ||
+									!die_no_1.equals(die_no) ||
+									!process_1.equals(process) ||
+									!cost_center_1.equals(cost_center) ||
+									!asset_nm_1.equals(asset_nm) ||
+									!class_cd_1.equals(class_cd) ||
+									kind_cd != kind_cd_1 ||
+									nbv != nbv_1 ||
+									acq_val_comp != acq_val_comp_1 ||
+									!cds_no1.equals(cds_no) ||
+									!cds_location1.equals(cds_location)) {
+								sql = " UPDATE tbl_total ";
+								//nếu không có sự thay đổi thì chỉ update bình thường
+								sql += "	SET asset_nm='" + asset_nm + "', kind_cd=" + kind_cd + ", kind_nm='" + kind_nm
+										+ "', class_cd='" + class_cd + "', class_nm='" + class_nm + "', acq_date='" + acq_date
+										+ "', ope_date='" + ope_date + "', acq_val_comp=" + acq_val_comp + ", nbv=" + nbv
+										+ ", supplier_name='" + supplier_name + "', capital_budget_code='" + capital_budget_code
+										+ "', note1='" + note1 + "', note2='" + note2 + "', invoice_no='" + invoice_no + "', die_no='"
+										+ die_no + "', process='" + process + "', name_old_fa='" + name_old_fa + "', updated_by = '" + updated_by + "', updated_date = now(), cost_center = '" + 
+										cost_center + "', cost_center_name = '" + cost_center_name + "', admi_acct_nm ='" + admi_acct_nm + "', location_nm='" + location_nm + "', cds_no = '" + cds_no + "', cds_location = '" + cds_location + "', request_status = '1', request_note = 'Available' ";
+								sql += "	WHERE total_id = '" + total_id + "';";
+								//System.out.println("Da update 2 " + j);
+								//a += md.InsertUpdate(sql);
+								lstQuery.add(sql);
+							}else {
+								sql = " UPDATE tbl_total set request_status = '1', request_note = 'Available' WHERE total_id = '" + total_id + "';";
+								lstQuery.add(sql);
+							}
+							
+						}
+					}
+				}
+				
+				
+			}
+			//System.out.println("Bat dau query " + (new Date().getTime()));
+			a = md.InsertUpdateLFromListQuery(lstQuery);
+			//System.out.println("Ket thuc query " + (new Date().getTime()));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		if (a > 0) {
+			ra.addAttribute("msg", "Successfully uploaded ! " + a + " records");
+		} else {
+			ra.addAttribute("msg", "No record uploaded !");
+		}
+
+		return "redirect:/Total";
+	}
+
+	public String ChangeCellType(CellType cellType, int i, XSSFRow row) {
+		String chuoi = "";
+		switch (cellType) {
+		case BOOLEAN:
+			chuoi = Boolean.toString(row.getCell(i).getBooleanCellValue());
+			break;
+		case STRING:
+			chuoi = row.getCell(i).getStringCellValue().replace("'", "");
+			break;
+		case NUMERIC:
+
+			if (DateUtil.isCellDateFormatted(row.getCell(i))) {
+				SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
+				chuoi = sdf.format(row.getCell(i).getDateCellValue());
+			} else if (Math.floor(row.getCell(i).getNumericCellValue()) == row.getCell(i).getNumericCellValue()) {
+				int a = (int) row.getCell(i).getNumericCellValue();
+				chuoi = Integer.toString(a);
+			} else {
+				chuoi = String.valueOf(row.getCell(i).getNumericCellValue());
+			}
+			break;
+		case FORMULA:
+			chuoi = String.valueOf(row.getCell(i).getCellFormula());
+			break;
+		case BLANK:
+			chuoi = "";
+			break;
+		case _NONE:
+			chuoi = "";
+			break;
+		case ERROR:
+			chuoi = "";
+			break;
+		default:
+			chuoi = "";
+		}
+
+		return chuoi.trim();
+
+	}
+
+	public CellType checknull(Cell cell) {
+		CellType a;
+		if (cell == null) {
+			a = CellType.BLANK;
+		} else {
+			a = cell.getCellType();
+		}
+
+		return a;
+
+	}
+	
+
+	
+
+	@RequestMapping(value = "/downloadExcel", method = RequestMethod.GET)
+  public ModelAndView getExcel(HttpServletRequest request){
+		TotalModel md = new TotalModel();
+		String cost_center = request.getParameter("cc");
+		List<TotalBean> lst = new ArrayList<TotalBean>();
+		//lst=md.getDanhsach();
+		lst=md.getDanhsach1(cost_center);
+         return new ModelAndView(new ExcelReportView(), "lst", lst);
+  }
+	@RequestMapping(value = "/remindPICConfirm", method = RequestMethod.GET)
+	  public String remindPICConfirm(HttpServletRequest request){
+		String fac = (String) request.getSession().getAttribute("factory");
+		String linkApprove = urlWeb + "/Total";
+		TotalModel md = new TotalModel();
+		ArrayList<String> lstMail = md.GetMailPICRemindConfirmation(fac);
+		if(lstMail != null) {
+			for(int i = 0; i < lstMail.size(); i++) {
+				MailModel.picConfirmFADepartment(lstMail.get(i), linkApprove);
+				//System.out.println(lstMail.get(i));
+			}
+		}
+		return "redirect:/Total";
+	  }
+	@RequestMapping(value = "/remindMGRConfirm", method = RequestMethod.GET)
+	  public String remindMGRConfirm(HttpServletRequest request){
+		String fac = (String) request.getSession().getAttribute("factory");
+		String linkApprove = urlWeb + "/Total";
+		TotalModel md = new TotalModel();
+		ArrayList<String> lstMail = md.GetMailMGRRemindConfirmation(fac);
+		if(lstMail != null) {
+			for(int i = 0; i < lstMail.size(); i++) {
+				MailModel.mgrConfirmFADepartment(lstMail.get(i), linkApprove);
+				//System.out.println(lstMail.get(i));
+			}
+		}
+		return "redirect:/Total";
+	  }
+	//confirm những asset nào mà sub 1 đã confirm, xảy ra khi upload file xuất hiện những sub mới, nhưng phòng ban chỉ confirm sub cũ
+	@RequestMapping(value = "/scanNotyetConfirm", method = RequestMethod.GET)
+	  public String scanNotYetConfirm(HttpServletRequest request){
+		String fac = (String) request.getSession().getAttribute("factory");
+		String linkApprove = urlWeb + "/Total";
+		TotalModel md = new TotalModel();
+		md.ConfirmForNotyet(fac);
+		return "redirect:/Total";
+	  }
+	@RequestMapping(value = "/confirmInfor", method = RequestMethod.GET)
+	  public String confirmInfor( ModelMap model, HttpServletRequest request, HttpServletResponse response){
+		String username=request.getParameter("username");
+		String cost_center=request.getParameter("cost_center");
+		String factory=request.getParameter("factory");
+		
+		if(username != null && cost_center != null && factory != null) {
+			request.getSession().setAttribute("username", username);
+			request.getSession().setAttribute("factory", factory);
+			request.getSession().setAttribute("cost_center", cost_center);
+		}
+		
+		String user = (String) request.getSession().getAttribute("username");
+		if(user == null || user == "") {
+			String assetNo=request.getParameter("assetNo").trim();
+			request.getSession().setAttribute("refer", "/confirmInfor?assetNo=" + assetNo);
+			return "redirect:/Login";
+		}
+		
+		String assetNo=request.getParameter("assetNo");
+			TotalModel md = new TotalModel();
+			List<TotalBean> lst = new ArrayList<TotalBean>();
+			List<TotalBean> trans_his = new ArrayList<TotalBean>();
+			lst=md.GetListByAsset(assetNo);
+			trans_his=md.GetChaningHistory(assetNo);
+			request.setAttribute("danhsach", lst);
+			request.setAttribute("transfer_history", trans_his);
+			String mDept=md.getDeptmgr(lst.get(0).getCost_center());
+			request.setAttribute("mDept",mDept);
+			
+			String location = md.getlocation(assetNo);
+			String mMea="";
+			String pMea = "";
+			if(location.equals("Que Vo"))
+			{
+				mMea=md.getMEAmgr("1200");
+				pMea=md.getMEApic("1200");
+			}
+			else
+			{
+				mMea=md.getMEAmgr("6700");
+				pMea=md.getMEApic("6700");
+			}
+			
+			request.setAttribute("mMea",mMea);
+			request.setAttribute("pMea",pMea);
+			List<String> danhsachPIC=md.getDanhsachPIC(lst.get(0).getCost_center());
+			request.setAttribute("danhsachPIC",danhsachPIC);
+			
+			String original_cost = TotalModel.GetOriginalCost_center(assetNo, "");
+			request.setAttribute("originalCost_center",original_cost);
+			
+	         return "/Total/confirmInfor";
+	  }
+	
+	@RequestMapping(value = "/deptapprove", method = RequestMethod.POST)
+	@ResponseBody
+	public List<String> deptapprove(ModelMap model, HttpServletRequest request, HttpServletResponse response,@RequestParam("asset_no") String assetNo) {
+		String pattern = "yyyyMMdd";
+		DateFormat df = new SimpleDateFormat(pattern);
+		Date today = Calendar.getInstance().getTime();
+		String todayAsString = df.format(today);
+		
+		String user = (String) request.getSession().getAttribute("username");
+		TotalModel md = new TotalModel();
+		md.deptap(assetNo,user,todayAsString);
+		//gui mail
+		String location = md.getlocation(assetNo);
+		ArrayList<String> EmailmMEA = new ArrayList<String>();
+		if(location.equals("Que Vo"))
+		{
+			EmailmMEA=md.getListEmailpic("1200");
+		}else
+		{
+			EmailmMEA=md.getListEmailpic("6700");
+		}
+		String linkApprove = urlWeb + "/confirmInfor?assetNo=" + assetNo;
+		for(int i = 0; i < EmailmMEA.size(); i++) {
+			MailModel.confirmFA(EmailmMEA.get(i),assetNo, linkApprove);
+		}
+		List<String> aa = new ArrayList<String>();
+		return aa;
+	
+	}
+	
+	@RequestMapping(value = "/meaapprove", method = RequestMethod.POST)
+	@ResponseBody
+	public List<String> meaapprove(ModelMap model, HttpServletRequest request, HttpServletResponse response,@RequestParam("asset_no") String assetNo) {
+		String pattern = "yyyyMMdd";
+		DateFormat df = new SimpleDateFormat(pattern);
+		Date today = Calendar.getInstance().getTime();
+		String todayAsString = df.format(today);
+		
+		String user = (String) request.getSession().getAttribute("username");
+		TotalModel md = new TotalModel();
+		md.MEAap(assetNo,user,todayAsString);
+		
+		List<String> aa = new ArrayList<String>();
+		return aa;
+	
+	}
+	
+	@RequestMapping(value = "/picapprove", method = RequestMethod.POST)
+	@ResponseBody
+	public List<String> picapprove(ModelMap model, HttpServletRequest request, HttpServletResponse response,@RequestParam("asset_no") String assetNo) {
+		String pattern = "yyyyMMdd";
+		DateFormat df = new SimpleDateFormat(pattern);
+		Date today = Calendar.getInstance().getTime();
+		String todayAsString = df.format(today);
+		
+		String user = (String) request.getSession().getAttribute("username");
+		TotalModel md = new TotalModel();
+		md.PICap(assetNo,user,todayAsString);
+		
+		// gui mail
+		List<TotalBean> lst = new ArrayList<TotalBean>();
+		
+		lst=md.GetListByAsset(assetNo);
+		String EmailmDept=md.getEmailmgr(lst.get(0).getCost_center());
+		String linkApprove = urlWeb + "/confirmInfor?assetNo=" + assetNo;
+		MailModel.confirmFA(EmailmDept,assetNo, linkApprove);
+	 	
+		
+		
+		List<String> aa = new ArrayList<String>();
+		return aa;
+	
+	}
+	@RequestMapping(value = "/picmeaapprove", method = RequestMethod.POST)
+	@ResponseBody
+	public List<String> picmeaapprove(ModelMap model, HttpServletRequest request, HttpServletResponse response,@RequestParam("asset_no") String assetNo) {
+		String pattern = "yyyyMMdd";
+		DateFormat df = new SimpleDateFormat(pattern);
+		Date today = Calendar.getInstance().getTime();
+		String todayAsString = df.format(today);
+		
+		
+		String user = (String) request.getSession().getAttribute("username");
+		TotalModel md = new TotalModel();
+		md.PICMEAap(assetNo,user,todayAsString);
+		String cc = (String) request.getSession().getAttribute("cost_center");
+		// gui mail
+		String EmailmDept=md.getEmailmgr(cc);
+		String linkApproval = urlWeb + "/confirmInfor?assetNo=" + assetNo + md.getLinkapproveMEAmgr(cc);
+		MailModel.confirmFA(EmailmDept,assetNo, linkApproval);
+	 	
+		
+		
+		List<String> aa = new ArrayList<String>();
+		return aa;
+	
+	}
+	
+	@RequestMapping(value = "/ande", method = RequestMethod.GET)
+	  public void ande( ModelMap model, HttpServletRequest request, HttpServletResponse response) throws IOException{
+		// If using Professional version, put your serial key below.
+        SpreadsheetInfo.setLicense("FREE-LIMITED-KEY");
+
+
+        
+        
+        ExcelFile workbook = ExcelFile.load(request.getContextPath()+"/templates/TemplateUse.xlsx");
+
+        int workingDays = 20;
+
+        LocalDateTime startDate = LocalDateTime.now().plusDays(-workingDays);
+        LocalDateTime endDate = LocalDateTime.now();
+
+        ExcelWorksheet worksheet = workbook.getWorksheet(0);
+
+        // Find cells with placeholder text and set their values.
+        RowColumn rowColumnPosition;
+        if ((rowColumnPosition = worksheet.getCells().findText("[Company Name]", true, true)) != null)
+            worksheet.getCell(rowColumnPosition.getRow(), rowColumnPosition.getColumn()).setValue("ACME Corp");
+        if ((rowColumnPosition = worksheet.getCells().findText("[Company Address]", true, true)) != null)
+            worksheet.getCell(rowColumnPosition.getRow(), rowColumnPosition.getColumn()).setValue("240 Old Country Road, Springfield, IL");
+        if ((rowColumnPosition = worksheet.getCells().findText("[Start Date]", true, true)) != null)
+            worksheet.getCell(rowColumnPosition.getRow(), rowColumnPosition.getColumn()).setValue(startDate);
+        if ((rowColumnPosition = worksheet.getCells().findText("[End Date]", true, true)) != null)
+            worksheet.getCell(rowColumnPosition.getRow(), rowColumnPosition.getColumn()).setValue(endDate);
+
+        // Copy template row.
+        int row = 17;
+        worksheet.getRows().insertCopy(row + 1, workingDays - 1, worksheet.getRow(row));
+
+        // Fill inserted rows with sample data.
+        Random random = new Random();
+        for (int i = 0; i < workingDays; i++) {
+            ExcelRow currentRow = worksheet.getRow(row + i);
+            currentRow.getCell(1).setValue(startDate.plusDays(i));
+            currentRow.getCell(2).setValue(random.nextInt(11) + 1);
+        }
+
+        // Calculate formulas in worksheet.
+        worksheet.calculate();
+
+        workbook.save("D:\\lalala1.xlsx");
+		
+		
+		
+	  }
+	
+	
+
+}
