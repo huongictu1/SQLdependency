@@ -1,0 +1,30 @@
+"Category code 
+（5 digits）"		Vietnamese Name	English Name	Final-New Service life
+04110P	04110P	Gia công kim loại, máy tiện	for metalworking , lathe	5
+04120P	04120P	Gia công kim loại, máy khoan	for metalworking , drilling machine	5
+04130P	04130P	Gia công kim loại, máy nghiền	for metalworking , milling machine	5
+04160P	04160P	Gia công kim loại, máy tráng phim	for metalworking , processing machine	5
+04190P	04190P	Gia công kim loại, các loại máy khác	for metalworking , others	5
+04210P	04210P	Thiết bị dùng cho kiểm tra dây chuyền	for assembly and testing, assembly mechanical device	5
+04290P	04290P	Thiết bị dùng cho kiểm tra dây chyền, các loại máy móc khác	for assembly and testing, others	5
+04420P	04420P	Máy làm nóng, làm mát và sấy khô	for heating or cooling , drying machine	5
+04430P	04430P	Thiết bị làm nóng, làm mát, dùng cho phòng đặc biệt	for heating or cooling , special room equipment	5
+04490P	04490P	Thiết bị làm nóng, làm mát, các thiết bị và máy móc khác	for heating or cooling , others	5
+04540P	04540P	Thiết bị sơn sử dụng chất lỏng	using liquid , painting equipment	5
+04590P	04590P	Máy sử dụng chất lỏng, các loại máy khác. 	using liquid , others	5
+04610P	04610P	Băng chuyền vận chuyển và phân phối, máy băng truyền	for conveyance and distribution, conveyor	5
+04620P	04620P	Băng chuyền vận chuyển và phân phối, thiết bị máy móc phân phát	for conveyance and distribution, delivery machine equipment	5
+04630P	04630P	Băng chuyền vận chuyển và phân phối, thiết bị máy đóng gói	for conveyance and distribution, packing machinery equipment 	5
+04690P	04690P	Băng chuyền vận chuyển và phân phối, các thiết bị máy móc khác	for conveyance and distribution, others	5
+04710P	04710P	Máy làm khuôn đúc, cho làm khuôn chất liệu tổng hợp	for molding synthetic resigns, moulding machine	5
+04720P	04720P	Máy đúc ép, cho làm khuôn chất liệu tổng hợp	for molding synthetic resigns, extruding machine	5
+04730P	04730P	Thiết bị phụ trợ, phục vụ cho làm khuôn chất liệu tổng hợp	for molding synthetic resigns, moulding peripheral equipment	5
+04790P	04790P	Các loại máy khác, phục vụ cho làm khuôn chất liệu tổng hợp	for molding synthetic resigns, others	5
+04820P	04820P	Máy móc kiểm tra, nghiên cứu & thí nghiệm hoặc đo lường	for measurement or experiment & research, testing mechanical device	6
+04830P	04830P	Máy đo lường hoặc thí nghiệm & nghiên cứu, phòng bản vẽ	for measurement or experiment & research, draft chamber	6
+04910P	04910P	Máy móc cho các mục đích khác, máy phát/máy cung cấp năng lượng	for other purpose, generator/power supply	8
+04930P	04930P	Máy móc cho các mục đích khác, máy dùng cho công việc phục vụ cho ngành mộc	for other purpose, wood-work machine	7
+04940P	04940P	Máy móc cho các mục đích khác, máy kỹ thuật hàn	for other purpose, welding/fusing machine	5
+04950P	04950P	Máy móc cho các mục đích khác, máy hàn 	for other purpose, soldering treatment machine	5
+04960P	04960P	Máy móc cho các mục đích khác, máy nghiền, xay, trộn.	for other purpose, mixing， stirring， grinding machines	5
+04990P	04990P	Máy móc cho các mục đích khác, các loại máy khác	for other purpose, others	5
