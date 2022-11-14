@@ -1,0 +1,36 @@
+Dear Huong-san
+
+Inc.'s security audit calls for the shutdown of emergency response “FortiClient” VPNs.
+
+I hear that the reason we started “FortiClient” is because of the disconnection of the RAS environment provided by Inc.
+
+But now RAS is harder to disconnect, says Inc.
+Therefore, it is necessary to check the current RAS environment on the CVN side.
+I tried RAS connection for a few days from home and never got disconnected.
+
+Therefore, could you check the connection status of the RAS environment at your home.
+Especially check the behavior around the RPA.
+The deadline is Friday the 18th.
+
+< Test scenario >
+(1):  Please use the ID and initial password below
+        Please see the attachment for the initial settings.
+
+RAS ID	Initial Passwod	Test User
+AVP9169i	64367096	Huong-san
+
+Reproducibility check with i-station type RAS for CINC from home (icon # 1 -10)
+Please connect from the red frame in the figure below.
+
+If disconnection occurs, try (2) below.
+*It also has settings to mitigate disconnection.
+
+Please let me know if disconnection does not occur.
+The FotiClient is in the direction of stopping.
+ 
+
+(2): Reproducibility check with i-station type RAS for CINC from home (icon # 11 mitigation has been implemented)
+* I put the retry setting when disconnecting on the i-station side.
+Make sure it is acceptable as a mitigation measure during replication
+Please check if this still causes a disconnect.
+ 
